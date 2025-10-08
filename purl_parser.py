@@ -1,5 +1,5 @@
 
-#nimmt einen purl entgegen und gibt die Einzelteile als Liste aus. Ist ein
+#Takes a purl as a string and outputs the components as a list 
 #scheme:title/namespace/name@version?qualifiers#subpath
 def parse(purl):
     _purlScheme = purl[:4]
@@ -12,12 +12,12 @@ def parse(purl):
         return splitComponents(_purlComponents)
     print("Ist keine Purl!!!")
 
-#Überprüft ob die Anforderungen an ein PURL gegeben sind
+#Checks whether the basic requirements for a purl are met
 def isValidPurl(scheme, components):
     #auch noch auf zu viele @, ?, # prüfen?
     return scheme == "pkg:" and len(components) >= 2 and len(components) < 4
 
-#Teilt den Purl in die einzelnen Komponenten
+#Splits the purl into its components
 def splitComponents(components):
     _componentList = [components[0]]
     if len(components) == 3:
@@ -27,25 +27,25 @@ def splitComponents(components):
     _componentList.extend(splitOptionalComponents(components[-1]))
     return _componentList
 
-#Teilt, wenn vorhanden, die optionalen Komponenten aus dem Purl heraus
+#splits the purl into its optional components
 def splitOptionalComponents(string):
     _componentList = []
-    _string = string
+    _stringToSplit = string
     _separators = ["#", "?", "@"]
 
     for i in _separators:
-        _split = _string.split(i)
+        _split = _stringToSplit.split(i)
         if len(_split) > 1:
             _componentList.append(_split[1])
         else:
             _componentList.append(None)
-        _string = _split[0]
+        _stringToSplit = _split[0]
 
-    _componentList.append(_string)
+    _componentList.append(_stringToSplit)
     _componentList.reverse()
     return(_componentList)
 
-#Parst eine Liste an purls
+#Parsed a list of purls
 def parseList(purlList):
     _parsedList = []
     for i in purlList:
@@ -54,14 +54,15 @@ def parseList(purlList):
             _parsedList.append(parse(i))
     return _parsedList
 
-#Druckt eine geparste Purl in die Konsole
+#Prints a parsed purl into the console
 def printPurl(purl):
     _purlComponents = ["Titel", "Namespace", "Name", "Version", "Qualifier", "Subpath"]
 
     for i in range(6):
         if purl[i] != None:
             print(_purlComponents[i] + ": " + purl[i])
-        
+
+#for showcase example purposes           
 def main():
     print("Parse:")
     printPurl(parse("pkg:title//namespace/name@version?qualifier#subpath"))
