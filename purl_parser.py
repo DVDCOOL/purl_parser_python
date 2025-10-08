@@ -27,10 +27,11 @@ def teileInOptionaleKomponenten(string):
     _string = string
     _separators = ["#", "?", "@"]
 
-    for i in range(len(_separators)):
-        if _separators[i] in _string:
-            _komponentenliste.append(_string.split(_separators[i])[1])
-            _string = _string.split(_separators[i])[0]
+    for i in _separators:
+        _split = _string.split(i)
+        if len(_split) > 1:
+            _komponentenliste.append(_split[1])
+        _string = _split[0]
     
     _komponentenliste.append(_string)
     _komponentenliste.reverse()
@@ -45,4 +46,4 @@ def main():
     parse("pkg:asdafdssdfjhsdfkj")
 
 if __name__ == "__main__":
-    main()  
+    main()
