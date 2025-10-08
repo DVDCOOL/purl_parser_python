@@ -3,28 +3,29 @@ import purl_parser
 
 class testParser(unittest.TestCase):
     
-    def test_istRichtigerPurl(self):
-        resultTrue = purl_parser.istRichtigerPurl("pkg:", "title/namespace/name@version?qualifier#subpath".split("/"))
+    def test_isValidPurl(self):
+        resultTrue = purl_parser.isValidPurl("pkg:", "title/namespace/name@version?qualifier#subpath".split("/"))
         self.assertTrue(resultTrue)
 
-        resultSchemaFalse = purl_parser.istRichtigerPurl("pk:", "title/namespace/name@version?qualifier#subpath".split("/"))
+        resultSchemaFalse = purl_parser.isValidPurl("pk:", "title/namespace/name@version?qualifier#subpath".split("/"))
         self.assertFalse(resultSchemaFalse)
 
-        resultKomponentenFalse = purl_parser.istRichtigerPurl("pkg:", "name@version?qualifier#subpath".split("/"))
+        resultKomponentenFalse = purl_parser.isValidPurl("pkg:", "name@version?qualifier#subpath".split("/"))
         self.assertFalse(resultKomponentenFalse)
 
-    def test_teileInOptionaleKomponenten(self):
-        result1 = purl_parser.teileInOptionaleKomponenten("name@version?qualifier#subpath")
+    def test_splitOptionalComponents(self):
+        result1 = purl_parser.splitOptionalComponents("name@version?qualifier#subpath")
         self.assertEquals(result1, ["name", "version", "qualifier", "subpath"])
 
-        result2 = purl_parser.teileInOptionaleKomponenten("name?qualifier")
+        result2 = purl_parser.splitOptionalComponents("name?qualifier")
         self.assertEquals(result2, ["name", None, "qualifier", None])
 
-        result3 = purl_parser.teileInOptionaleKomponenten("name#subpath")
+        result3 = purl_parser.splitOptionalComponents("name#subpath")
         self.assertEquals(result3, ["name", None, None, "subpath"])
 
-        result4 = purl_parser.teileInOptionaleKomponenten("name")
+        result4 = purl_parser.splitOptionalComponents("name")
         self.assertEquals(result4, ["name", None, None, None])
+
 
     def test_parser(self):
         result = purl_parser.parse("pkg:titel/namespace/name@version?qualifiers#subpath")
@@ -41,7 +42,7 @@ class testParser(unittest.TestCase):
 
 
 
-    def test_parseListe(self):
+    def test_parseList(self):
         liste = ["pkg:titel/name@version", "pkg:name@version?qualifiers#subpath", "pkg:titel/namespace/name@version#subpath"]
-        result = purl_parser.parseListe(liste)
+        result = purl_parser.parseList(liste)
         self.assertEquals(result, [["titel", None, "name", "version", None, None], ["titel", "namespace", "name", "version", None, "subpath"]])
