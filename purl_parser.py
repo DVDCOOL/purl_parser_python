@@ -1,65 +1,66 @@
 
-#nimmt einen purl entgegen und gibt die Einzelteile als Liste aus
+#nimmt einen purl entgegen und gibt die Einzelteile als Liste aus. Ist ein
 #scheme:title/namespace/name@version?qualifiers#subpath
 def parse(purl):
-    _purlSchema = purl[:4]
+    _purlScheme = purl[:4]
     _purlURL = purl[4:]
-    _purlKomponenten = _purlURL.split("/")
-    _purlKomponenten = list(filter(lambda x: len(x) > 0, _purlKomponenten))
+    _purlComponents = _purlURL.split("/")
+    _purlComponents = list(filter(lambda x: len(x) > 0, _purlComponents))
 
     #Darf ein Purl nur eines jeder Trennzeichen haben?
-    if istRichtigerPurl(_purlSchema, _purlKomponenten):
-        return teileInKomponenten(_purlKomponenten)
+    if isValidPurl(_purlScheme, _purlComponents):
+        return splitComponents(_purlComponents)
     print("Ist keine Purl!!!")
 
 #Überprüft ob die Anforderungen an ein PURL gegeben sind
-def istRichtigerPurl(schema, komp):
-    return schema == "pkg:" and len(komp) >= 2 and len(komp) < 4
+def isValidPurl(scheme, components):
+    #auch noch auf zu viele @, ?, # prüfen?
+    return scheme == "pkg:" and len(components) >= 2 and len(components) < 4
 
 #Teilt den Purl in die einzelnen Komponenten
-def teileInKomponenten(komponenten):
-    _listeKomponenten = [komponenten[0]]
-    if len(komponenten) == 3:
-        _listeKomponenten.append(komponenten[1])
+def splitComponents(components):
+    _componentList = [components[0]]
+    if len(components) == 3:
+        _componentList.append(components[1])
     else:
-        _listeKomponenten.append(None)
-    _listeKomponenten.extend(teileInOptionaleKomponenten(komponenten[-1]))
-    return _listeKomponenten
+        _componentList.append(None)
+    _componentList.extend(splitOptionalComponents(components[-1]))
+    return _componentList
 
 #Teilt, wenn vorhanden, die optionalen Komponenten aus dem Purl heraus
-def teileInOptionaleKomponenten(string):
-    _komponentenliste = []
+def splitOptionalComponents(string):
+    _componentList = []
     _string = string
     _separators = ["#", "?", "@"]
 
     for i in _separators:
         _split = _string.split(i)
         if len(_split) > 1:
-            _komponentenliste.append(_split[1])
+            _componentList.append(_split[1])
         else:
-            _komponentenliste.append(None)
+            _componentList.append(None)
         _string = _split[0]
-    
-    _komponentenliste.append(_string)
-    _komponentenliste.reverse()
-    return(_komponentenliste)
+
+    _componentList.append(_string)
+    _componentList.reverse()
+    return(_componentList)
 
 #Parst eine Liste an purls
-def parseListe(purlListe):
-    _geparstePurls = []
-    for i in purlListe:
+def parseList(purlList):
+    _parsedList = []
+    for i in purlList:
         _parse = parse(i)
         if _parse != None:
-            _geparstePurls.append(parse(i))
-    return _geparstePurls
+            _parsedList.append(parse(i))
+    return _parsedList
 
 #Druckt eine geparste Purl in die Konsole
 def printPurl(purl):
-    _komponentenPurl = ["Titel", "Namespace", "Name", "Version", "Qualifier", "Subpath"]
+    _purlComponents = ["Titel", "Namespace", "Name", "Version", "Qualifier", "Subpath"]
 
     for i in range(6):
         if purl[i] != None:
-            print(_komponentenPurl[i] + ": " + purl[i])
+            print(_purlComponents[i] + ": " + purl[i])
         
 def main():
     print("Parse:")
