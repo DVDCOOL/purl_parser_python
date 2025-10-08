@@ -37,6 +37,14 @@ def teileInOptionaleKomponenten(string):
     _komponentenliste.reverse()
     return(_komponentenliste)
 
+def parseListe(purlListe):
+    _geparstePurls = []
+    for i in purlListe:
+        _parse = parse(i)
+        if _parse != None:
+            _geparstePurls.append(parse(i))
+    return _geparstePurls
+
 def main():
     print("Parse:")
     parse("pkg:title/namespace/name@version?qualifier#subpath")

@@ -30,5 +30,13 @@ class testParser(unittest.TestCase):
         result = purl_parser.parse("pkg:titel/namespace/name@version?qualifiers#subpath")
         self.assertEquals(result, ["titel", "namespace", "name", "version", "qualifiers", "subpath"])
 
-        result2 = purl_parser.parse("pkg:pygments-main@244fd47e07d1014f0aed9c")
+        result2 = purl_parser.parse("pkg:name@version?qualifiers#subpath")
         self.assertEquals(result2, None)
+
+        result3 = purl_parser.parse("pkg:titel/name@version?qualifiers#subpath")
+        self.assertEquals(result3, ["titel", "name", "version", "qualifiers", "subpath"])
+
+    def test_parseListe(self):
+        liste = ["pkg:titel/name@version", "pkg:name@version?qualifiers#subpath", "pkg:titel/namespace/name@version#subpath"]
+        result = purl_parser.parseListe(liste)
+        self.assertEquals(result, [["titel", "name", "version"], ["titel", "namespace", "name", "version", "subpath"]])
