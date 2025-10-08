@@ -14,9 +14,21 @@ class testParser(unittest.TestCase):
         self.assertFalse(resultKomponentenFalse)
 
     def test_teileInOptionaleKomponenten(self):
-        result = purl_parser.teileInOptionaleKomponenten("name@version?qualifier#subpath")
-        self.assertEquals(result, ["name", "version", "qualifier", "subpath"])
+        result1 = purl_parser.teileInOptionaleKomponenten("name@version?qualifier#subpath")
+        self.assertEquals(result1, ["name", "version", "qualifier", "subpath"])
+
+        result2 = purl_parser.teileInOptionaleKomponenten("name?qualifier")
+        self.assertEquals(result2, ["name", "qualifier"])
+
+        result3 = purl_parser.teileInOptionaleKomponenten("name#subpath")
+        self.assertEquals(result3, ["name", "subpath"])
+
+        result4 = purl_parser.teileInOptionaleKomponenten("name")
+        self.assertEquals(result4, ["name"])
 
     def test_parser(self):
         result = purl_parser.parse("pkg:titel/namespace/name@version?qualifiers#subpath")
         self.assertEquals(result, ["titel", "namespace", "name", "version", "qualifiers", "subpath"])
+
+        result2 = purl_parser.parse("pkg:pygments-main@244fd47e07d1014f0aed9c")
+        self.assertEquals(result2, None)
