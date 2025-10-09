@@ -13,7 +13,7 @@ class testParser(unittest.TestCase):
         resultKomponentenFalse = purl_parser.isValidPurl("pkg:", "name@version?qualifier#subpath".split("/"))
         self.assertFalse(resultKomponentenFalse)
 
-        resultTooManySeparators = purl_parser.isValidPurl("pkg:", "name@versi@on?qualif?er#subp#ath".split("/"))
+        resultTooManySeparators = purl_parser.isValidPurl("pkg:", "title/namespace/name@versi@on?qualif?ier#subp#ath".split("/"))
         self.assertFalse(resultTooManySeparators)
 
     def test_splitOptionalComponents(self):
