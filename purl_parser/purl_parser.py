@@ -17,12 +17,14 @@ def parse(purl):
 def isValidPurl(scheme, components):
     #auch noch auf zu viele @, ?, # prüfen?
     enoughComponents = len(components) >= 2 and len(components) < 4
+
     validSeperatorNumber = True
     _separators = ["#", "?", "@"]
     for i in _separators:
         if components[-1].count(i) > 1:
             _separators = False
-    return scheme == "pkg:" and len(components) >= 2 and len(components) < 4
+
+    return scheme == "pkg:" and enoughComponents and validSeperatorNumber
 
 #Splits the purl into its components
 def splitComponents(components):
