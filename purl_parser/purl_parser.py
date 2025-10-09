@@ -22,7 +22,7 @@ def isValidPurl(scheme, components):
     _separators = ["#", "?", "@"]
     for i in _separators:
         if components[-1].count(i) > 1:
-            _separators = False
+            validSeperatorNumber = False
 
     return scheme == "pkg:" and enoughComponents and validSeperatorNumber
 
