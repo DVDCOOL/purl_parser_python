@@ -13,6 +13,9 @@ class testParser(unittest.TestCase):
         resultKomponentenFalse = purl_parser.isValidPurl("pkg:", "name@version?qualifier#subpath".split("/"))
         self.assertFalse(resultKomponentenFalse)
 
+        resultTooManySeparators = purl_parser.isValidPurl("pkg:", "name@versi@on?qualif?er#subp#ath".split("/"))
+        self.assertFalse(resultTooManySeparators)
+
     def test_splitOptionalComponents(self):
         result1 = purl_parser.splitOptionalComponents("name@version?qualifier#subpath")
         self.assertEquals(result1, ["name", "version", "qualifier", "subpath"])
@@ -26,7 +29,6 @@ class testParser(unittest.TestCase):
         result4 = purl_parser.splitOptionalComponents("name")
         self.assertEquals(result4, ["name", None, None, None])
 
-
     def test_parser(self):
         result = purl_parser.parse("pkg:titel/namespace/name@version?qualifiers#subpath")
         self.assertEquals(result, ["titel", "namespace", "name", "version", "qualifiers", "subpath"])
@@ -39,6 +41,9 @@ class testParser(unittest.TestCase):
 
         result4 = purl_parser.parse("pkg://titel//name@version?qualifiers#subpath")
         self.assertEquals(result4, ["titel", None, "name", "version", "qualifiers", "subpath"])
+
+        result5 = purl_parser.parse(123)
+        self.assertEquals(result5, None)
 
 
 
