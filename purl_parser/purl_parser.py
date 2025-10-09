@@ -2,19 +2,26 @@
 #Takes a purl as a string and outputs the components as a list 
 #scheme:title/namespace/name@version?qualifiers#subpath
 def parse(purl):
-    _purlScheme = purl[:4]
-    _purlURL = purl[4:]
-    _purlComponents = _purlURL.split("/")
-    _purlComponents = list(filter(lambda x: len(x) > 0, _purlComponents))
+    if isinstance(purl, str):
+        _purlScheme = purl[:4]
+        _purlURL = purl[4:]
+        _purlComponents = _purlURL.split("/")
+        _purlComponents = list(filter(lambda x: len(x) > 0, _purlComponents))
 
-    #Darf ein Purl nur eines jeder Trennzeichen haben?
-    if isValidPurl(_purlScheme, _purlComponents):
-        return splitComponents(_purlComponents)
+        #Darf ein Purl nur eines jeder Trennzeichen haben?
+        if isValidPurl(_purlScheme, _purlComponents):
+            return splitComponents(_purlComponents)
     print("Ist keine Purl!!!")
 
 #Checks whether the basic requirements for a purl are met
 def isValidPurl(scheme, components):
     #auch noch auf zu viele @, ?, # prüfen?
+    enoughComponents = len(components) >= 2 and len(components) < 4
+    validSeperatorNumber = True
+    _separators = ["#", "?", "@"]
+    for i in _separators:
+        if components[-1].count(i) > 1:
+            _separators = False
     return scheme == "pkg:" and len(components) >= 2 and len(components) < 4
 
 #Splits the purl into its components
