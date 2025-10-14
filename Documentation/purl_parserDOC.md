@@ -1,12 +1,18 @@
 
-# purl_parser docs
+# purl_parser Documentation
+
+Splits up purls into their components. The structure of a purl is the following
+
+scheme:title/namespace/name@version?qualifiers#subpath
+
+A parsed purl will have a separated title, namespace, name, version, qualifier and subpath. This parser does not percent-decode the components yet.
 
 ## parse(purl)
 purl        -> str
 
 returns     -> list[str]
 
-Method takes a String as a Parameter, checks if it has all the mandatory components of a purl using isValidPurl() and returns the parsed String components in a List without separator characters and without the scheme. If the Parameter is not a String or not a Purl, this Method will return None and print a warning on the console.
+Method takes a String as a Parameter, checks if it has all the mandatory components of a purl using isValidPurl() and returns the parsed String components in a List without separator characters and without the scheme. If an optional component is not present, the list will contain None in its place. If the Parameter is not a String or not a Purl, this Method will return None and print a warning on the console.
 
 ## isValidPurl(scheme, components)
 scheme      -> str
