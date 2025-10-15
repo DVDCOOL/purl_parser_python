@@ -1,5 +1,5 @@
 import unittest
-import purl_parser_python.purl_parser.purl_parser as purl_parser
+import purl_parser.purl_parser as purl_parser
 
 class testParser(unittest.TestCase):
     
