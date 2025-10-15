@@ -77,17 +77,20 @@ class Database:
         return saved[0]
 
 
-    def isVersionSynCorrect(self, version):
+    def isVersionSynCorrect(version):
         versionSpecs = version.split(".")
+        print(len(versionSpecs))
         versionCorrect = True
         if len(versionSpecs) < 2 or len(versionSpecs) > 3:
             versionCorrect = False
         elif len(versionSpecs) == 2:
+            print(version)
             version = version + ".0"
+            print(version)
         return versionCorrect, version
             
 
-    def encodeVersion(self, version):
+    def encodeVersion(version):
         versionSpecs = version.split(".")
         return versionSpecs[0], versionSpecs[1], versionSpecs[2]
 
