@@ -1,0 +1,1 @@
+dbPath = "database/duckDB/packages.db"
