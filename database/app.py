@@ -2,7 +2,7 @@ import duckDB.functionsForDB as db
 import DBConfigs as conf
 
 def main():
-	uidb = db.FunctionsForDB(conf.dbPath)
+	uidb = db.Database(conf.dbPath)
 	print("""
 ---------  PACKAGE DATABASE  ---------
 Press the corresponding number for your need
