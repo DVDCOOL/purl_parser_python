@@ -1,0 +1,65 @@
+[
+    {
+        "description": "test_parse_standard_purl",
+        "purl": "pkg:title/namespace/name@version?qualifiers#subpath",
+        "test_type": "component_parsing",
+        "title": "title",
+        "namespace": "namespace",
+        "name": "name",
+        "version": "version",
+        "qualifiers": "qualifiers",
+        "subpath": "subpath",
+        "is_purl": true
+    },
+
+    {
+        "description": "test_missing_scheme",
+        "purl": "title/namespace/name@version?qualifiers#subpath",
+        "test_type": null,
+        "title": null,
+        "namespace": null,
+        "name": null,
+        "version": null,
+        "qualifiers": null,
+        "subpath": null,
+        "is_purl": false
+    },
+
+    {
+        "description": "test_missing_title",
+        "purl": "pkg:name@version?qualifiers#subpath",
+        "test_type": "component_parsing",
+        "title": null,
+        "namespace": null,
+        "name": null,
+        "version": null,
+        "qualifiers": null,
+        "subpath": null,
+        "is_purl": false
+    },
+
+    {
+        "description": "test_missing_name",
+        "purl": "pkg:title/namespace/@version?qualifiers#subpath",
+        "title": "title",
+        "namespace": "namespace",
+        "name": "",
+        "version": "version",
+        "qualifiers": "qualifiers",
+        "subpath": "subpath",
+        "is_purl": false
+    },
+
+    {
+        "description": "test_missing_namespace",
+        "purl": "pkg:title/name@version?qualifiers#subpath",
+        "test_type": "component_parsing",
+        "title": "title",
+        "namespace": null,
+        "name": "name",
+        "version": "version",
+        "qualifiers": "qualifiers",
+        "subpath": "subpath",
+        "is_purl": true
+    }
+]

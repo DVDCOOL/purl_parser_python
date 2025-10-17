@@ -2,7 +2,7 @@ from constants import *
 
 #Takes a purl as a string and outputs the components as a list 
 #scheme:title/namespace/name@version?qualifiers#subpath
-class purl_parser:
+class purlparser:
     def __init__(self, purl):
         self.purl = purl
         
