@@ -12,15 +12,12 @@ class test_components(unittest.TestCase):
 def createTestMethods(description, purl, title, namespace, name, version, qualifiers, subpath):
         def test_method(self):
             parsedpurl = purlparser(purl)
-            print(title)
             self.assertEqual(parsedpurl.title, title)
-            print(namespace)
             self.assertEqual(parsedpurl.namespace, namespace)
             self.assertEqual(parsedpurl.name, name)
             self.assertEqual(parsedpurl.version, version)
             self.assertEqual(parsedpurl.qualifiers, qualifiers)
             self.assertEqual(parsedpurl.subpath, subpath)
-            print("ok")
         test_method.__name__ = description
         return test_method
 
