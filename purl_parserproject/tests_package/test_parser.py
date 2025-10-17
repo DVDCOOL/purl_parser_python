@@ -3,7 +3,7 @@ import json
 from purl_parser import purlparser
 
 def loadTestCases():
-    with open('purl_parserproject/tests/testcases.json') as file:
+    with open('purl_parserproject/tests_package/testcases.json') as file:
         return json.load(file)
 
 class test_components(unittest.TestCase):
@@ -38,3 +38,6 @@ def load_tests(loader, tests, pattern):
     generate_tests()
     return loader.loadTestsFromTestCase(test_components)
 
+if __name__ == '__main__':
+    generate_tests()
+    unittest.main()
