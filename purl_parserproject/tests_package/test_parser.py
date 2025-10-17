@@ -9,6 +9,9 @@ def loadTestCases():
 class test_components(unittest.TestCase):
     pass
 
+class test_content(unittest.TestCase):
+    pass
+
 def createTestMethods(description, purl, title, namespace, name, version, qualifiers, subpath):
         def test_method(self):
             parsedpurl = purlparser(purl)
@@ -23,21 +26,25 @@ def createTestMethods(description, purl, title, namespace, name, version, qualif
 
 def generate_tests():
     for case in loadTestCases():
-        description = case['description']
-        purl = case['purl']
-        title = case['title']
-        namespace = case['namespace']
-        name = case['name']
-        version = case['version']
-        qualifiers = case['qualifiers']
-        subpath = case['subpath']
-        test_method = createTestMethods(description, purl, title, namespace, name, version, qualifiers, subpath)
-        setattr(test_components, test_method.__name__, test_method)
+        test_method = createTestMethods(case['description'], case['purl'], case['title'], case['namespace'], case['name'], case['version'], case['qualifiers'], case['subpath'])
+        if case['test_type'] == "component_parsing":
+            setattr(test_components, test_method.__name__, test_method)
+        if case['test_type'] == "content_parsing":
+            setattr(test_content, test_method.__name__, test_method)
 
+
+def load_tests(loader, tests, pattern):
+     generate_tests()
+     suite = unittest.TestSuite()
+     suite.addTests(loader.loadTestsFromTestCase(test_components))
+     suite.addTests(loader.loadTestsFromTestCase(test_content))
+     return suite
+
+'''
 def load_tests(loader, tests, pattern):
     generate_tests()
     return loader.loadTestsFromTestCase(test_components)
 
 if __name__ == '__main__':
     generate_tests()
-    unittest.main()
+    unittest.main()'''

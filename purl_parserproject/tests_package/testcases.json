@@ -15,7 +15,7 @@
     {
         "description": "test_missing_scheme",
         "purl": "title/namespace/name@version?qualifiers#subpath",
-        "test_type": null,
+        "test_type": "component_parsing",
         "title": null,
         "namespace": null,
         "name": null,
@@ -41,6 +41,7 @@
     {
         "description": "test_missing_name",
         "purl": "pkg:title/namespace/@version?qualifiers#subpath",
+        "test_type": "component_parsing",
         "title": "title",
         "namespace": "namespace",
         "name": "",
@@ -54,6 +55,19 @@
         "description": "test_missing_namespace",
         "purl": "pkg:title/name@version?qualifiers#subpath",
         "test_type": "component_parsing",
+        "title": "title",
+        "namespace": null,
+        "name": "name",
+        "version": "version",
+        "qualifiers": "qualifiers",
+        "subpath": "subpath",
+        "is_purl": true
+    },
+
+    {
+        "description": "test_different_class",
+        "purl": "pkg:title/name@version?qualifiers#subpath",
+        "test_type": "content_parsing",
         "title": "title",
         "namespace": null,
         "name": "name",
