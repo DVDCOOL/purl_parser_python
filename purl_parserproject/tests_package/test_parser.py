@@ -12,6 +12,9 @@ class test_components(unittest.TestCase):
 class test_content(unittest.TestCase):
     pass
 
+class test_purls(unittest.TestCase):
+    pass
+
 def createTestMethods(description, purl, title, namespace, name, version, qualifiers, subpath):
         def test_method(self):
             parsedpurl = purlparser(purl)
@@ -31,20 +34,13 @@ def generate_tests():
             setattr(test_components, test_method.__name__, test_method)
         if case['test_type'] == "content_parsing":
             setattr(test_content, test_method.__name__, test_method)
-
+        if case['test_type'] == "purl_parsing":
+            setattr(test_purls, test_method.__name__, test_method)
 
 def load_tests(loader, tests, pattern):
      generate_tests()
      suite = unittest.TestSuite()
      suite.addTests(loader.loadTestsFromTestCase(test_components))
      suite.addTests(loader.loadTestsFromTestCase(test_content))
+     suite.addTests(loader.loadTestsFromTestCase(test_purls))
      return suite
-
-'''
-def load_tests(loader, tests, pattern):
-    generate_tests()
-    return loader.loadTestsFromTestCase(test_components)
-
-if __name__ == '__main__':
-    generate_tests()
-    unittest.main()'''
