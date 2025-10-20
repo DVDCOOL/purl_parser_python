@@ -15,7 +15,7 @@ class test_content(unittest.TestCase):
 class test_purls(unittest.TestCase):
     pass
 
-def createTestMethods(description, purl, title, namespace, name, version, qualifiers, subpath):
+def createTestMethods(description, purl, title, namespace, name, version, qualifiers, subpath, ispurl):
         def test_method(self):
             parsedpurl = purlparser(purl)
             self.assertEqual(parsedpurl.title, title)
@@ -24,12 +24,13 @@ def createTestMethods(description, purl, title, namespace, name, version, qualif
             self.assertEqual(parsedpurl.version, version)
             self.assertEqual(parsedpurl.qualifiers, qualifiers)
             self.assertEqual(parsedpurl.subpath, subpath)
+            self.assertEqual(parsedpurl.ispurl, ispurl)
         test_method.__name__ = description
         return test_method
 
 def generate_tests():
     for case in loadTestCases():
-        test_method = createTestMethods(case['description'], case['purl'], case['title'], case['namespace'], case['name'], case['version'], case['qualifiers'], case['subpath'])
+        test_method = createTestMethods(case['description'], case['purl'], case['title'], case['namespace'], case['name'], case['version'], case['qualifiers'], case['subpath'], case['is_purl'])
         if case['test_type'] == "component_parsing":
             setattr(test_components, test_method.__name__, test_method)
         if case['test_type'] == "content_parsing":
