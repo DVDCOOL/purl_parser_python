@@ -2,110 +2,101 @@ from constants import *
 
 #Takes a purl as a string and outputs the components as a list 
 #scheme:title/namespace/name@version?qualifiers#subpath
-class purl_parser:
+class PurlParser:
     def __init__(self, purl):
-        self.purl = purl
+        self.inputPurl = purl
+        self.purl = self.inputPurl
         
         self.validPurl = True
         self.scheme = None
-        self.componentsToSplit = None
-        self.components = []
-        self.title = None
+        self.type = None
         self.namespace = None
         self.name = None
-        self.packageToSplit = None
-        self.packageComponents = []
         self.version = None
         self.qualifiers = None
         self.listOfQualifiers = []
         self.subpath = None
-        self.separators = [SEPARATOR_FOR_SUBPATH, SEPARATOR_FOR_QUALIFIER, SEPARATOR_FOR_VERSION]
-        
+
         self.parse()
         
     def parse(self):
         if isinstance(self.purl, str) and len(self.purl) > len(PURL_PREFIX)+1 and len(self.purl) <= MAX_PURL_LENGTH:
-            if len(self.purl.split(SEPERATOR_FOR_SCHEME))>1:
-                self.scheme = self.purl.split(SEPERATOR_FOR_SCHEME)[0]
-                self.componentsToSplit = self.purl[len(self.scheme)+1:]  
-                if self.scheme != PURL_PREFIX:
-                    self.validPurl = False
-            else:
-                self.componentsToSplit = self.purl
-                self.validPurl = False
-            self.components = list(filter(lambda x: len(x) > 0, self.componentsToSplit.split(SEPARATOR_FOR_NAME)))
-            #Darf ein Purl nur eines jeder Trennzeichen haben?
-            #auch noch auf zu viele @, ?, # prüfen?
-            for i in self.separators:
-                if self.components[PURL_PACKAGE_INDEX].count(i) > 1:
-                    self.validPurl = False
-            enoughComponents = len(self.components) >= PURL_MINIMUM_NUMBER_OF_COMPONENTS
-            if enoughComponents:
-                self.splitComponents()
-            elif len(self.components) == 1:
-                self.validPurl = False
-                self.packageToSplit = self.components[PURL_PACKAGE_INDEX]
-            self.splitPackageComponents()
-            if self.qualifiers:
-                self.parseQualifier()    
-        
-            
+            self.parseSubpath()
+            self.parseQualifier()
+            self.parseScheme()
+            self.parseType()
+            self.parseVersion()
+            self.parseName()
+            self.parseNamespace()
 
-    #Splits the purl into its components
-    def splitComponents(self):
-        self.title = self.components[PURL_TITLE_INDEX]
-        if len(self.components) == PURL_MAXIMUM_NUMBER_OF_COMPONENTS:
-            self.namespace = self.components[PURL_NAMESPACE_INDEX]
-            self.packageToSplit = self.components[PURL_PACKAGE_INDEX]
-        elif len(self.components) == PURL_MINIMUM_NUMBER_OF_COMPONENTS:
-            self.namespace = None
-            self.packageToSplit = self.components[PURL_PACKAGE_INDEX]
+            
+    def parseSubpath(self):
+        purlSplit = self.purl.split(SEPARATOR_FOR_SUBPATH)
+        if len(purlSplit) > 1:
+            subpath_string = purlSplit[-1]
+            segments = [s for s in subpath_string.split('/') 
+                    if s and s not in ('.', '..')]
+            self.subpath = '/'.join(segments) if segments else None
+            self.updatePurlIfComponentAtTheback(subpath_string)
+
+
+    def parseQualifier(self):
+        purlSplit = self.purl.split(SEPARATOR_FOR_QUALIFIER)
+        if len(purlSplit) > 1:
+            self.qualifiers = purlSplit[-1]
+            key_and_values = self.qualifiers.split(SEPARATOR_BETWEEN_QUALIFIERS)
+            for i in key_and_values:
+                self.listOfQualifiers.append(i.split(SEPARATOR_BETWEEN_KEY_AND_VALUE))
+            self.updatePurlIfComponentAtTheback(self.qualifiers)
+    
+    def parseScheme(self):
+        if len(self.purl.split(SEPARATOR_FOR_SCHEME)) > 1:
+            self.scheme = self.purl.split(SEPARATOR_FOR_SCHEME)[0].lower()
+            self.purl = self.purl[len(self.scheme)+1:]
+            self.purl = self.purl.lstrip('/')  # Add this line
+            if self.scheme != PURL_PREFIX:
+                self.validPurl = False
         else:
             self.validPurl = False
-            self.packageToSplit = self.componentsToSplit[len(self.title):]
-            slashnum = 0
-            for i in self.packageToSplit:
-                if i != "/":
-                    break
-                else:
-                    slashnum += 1
-            self.packageToSplit = self.componentsToSplit[(len(self.namespace) + slashnum ):]
-            slashnum = 0
-            for i in self.packageToSplit:
-                if i != "/":
-                    break
-                else:
-                    slashnum += 1
-            self.packageToSplit = self.componentsToSplit[slashnum:]
-            
 
+    def parseType(self):
+        purlSplit = self.splitComponentsByNameSeparator()
+        if len(purlSplit) > 1:
+            self.type = purlSplit[0].lower()
+            self.purl = self.purl[len(self.type)+1:]  
+        else:
+            self.validPurl = False
+    
+    def parseVersion(self):
+        purlSplit = self.purl.split(SEPARATOR_FOR_VERSION)
+        if len(purlSplit) > 1:
+            self.version = purlSplit[-1]
+            self.updatePurlIfComponentAtTheback(self.version)
+        self.purl = self.purl.rstrip('/')  # Add this line (outside the if)
+    
+    def parseName(self):
+        purlSplit = self.splitComponentsByNameSeparator()
+        if len(purlSplit) > 1:
+            self.name = purlSplit[-1]
+            self.updatePurlIfComponentAtTheback(self.name)
+        elif purlSplit[0] != "":
+            self.name = self.purl
+            self.purl = ""
+        else:
+            self.validPurl = False
+    
+    def parseNamespace(self):
+        purlSplit = self.purl.rstrip('/').lstrip('/')
 
-    #splits the purl into its optional components
-    def splitPackageComponents(self):
-        
-        for i in self.separators:
-            #split from the right side, so that the name is always at the front
-            component = self.packageToSplit.split(i)
-            if len(component) > 1:
-                self.packageComponents.append(component[1])
-            else:
-                self.packageComponents.append(None)
-            self.packageToSplit = component[0]
-            
-        self.packageComponents.append(self.packageToSplit)
-        self.packageComponents.reverse()
-
-        self.name = self.packageComponents[PACKAGE_NAME_INDEX]
-        self.version = self.packageComponents[PACKAGE_VERSION_INDEX]
-        self.qualifiers = self.packageComponents[PACKAGE_QUALIFIER_INDEX]
-        self.subpath = self.packageComponents[PACKAGE_SUBPATH_INDEX]
-        
-    def parseQualifier(self):
-        key_and_values = self.qualifiers.split("&")
-        for i in self.key_and_values:
-            self.listOfQualifiers.append(key_and_values.split("="))
+        if purlSplit:
+            self.namespace = purlSplit
+    
+    def splitComponentsByNameSeparator(self):
+        return list(filter(lambda x: len(x) > 0, self.purl.split(SEPARATOR_FOR_NAME)))
+    
+    def updatePurlIfComponentAtTheback(self, component_to_remove):
+        self.purl = self.purl[:len(self.purl) - len(component_to_remove) -1]
         
 
 
-
-
+   
