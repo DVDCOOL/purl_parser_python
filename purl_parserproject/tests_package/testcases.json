@@ -1,75 +1,65 @@
 [
     {
         "description": "test_parse_standard_purl",
-        "purl": "pkg:title/namespace/name@version?qualifiers=this#subpath",
+        "purl": "pkg:type/namespace/name@version?qualifiers=this#subpath",
         "test_type": "component_parsing",
-        "title": "title",
+        "type": "type",
         "namespace": "namespace",
         "name": "name",
         "version": "version",
-        "qualifiers" : {
-            "qualifiers" : "this"
-        },
+        "listOfQualifiers" : [["qualifiers", "this"]],
         "subpath": "subpath",
         "is_purl": true
     },
 
     {
         "description": "test_missing_scheme",
-        "purl": "title/namespace/name@version?qualifiers=this#subpath",
+        "purl": "type/namespace/name@version?qualifiers=this#subpath",
         "test_type": "component_parsing",
-        "title": "title",
+        "type": "type",
         "namespace": "namespace",
         "name": "name",
         "version": "version",
-        "qualifiers" : {
-            "qualifiers" : "this"
-        },
+        "listOfQualifiers" : [["qualifiers", "this"]],
         "subpath": "subpath",
         "is_purl": false
     },
 
     {
-        "description": "test_missing_title",
+        "description": "test_missing_type",
         "purl": "pkg:name@version?qualifiers=this#subpath",
         "test_type": "component_parsing",
-        "title": null,
+        "type": null,
         "namespace": null,
         "name": "name",
         "version": "version",
-        "qualifiers" : {
-            "qualifiers" : "this"
-        },
+        "listOfQualifiers" : [["qualifiers", "this"]],
         "subpath": "subpath",
         "is_purl": false
     },
 
     {
         "description": "test_missing_name",
-        "purl": "pkg:title/namespace/@version?qualifiers=this#subpath",
+        "purl": "pkg:type/namespace/@version?qualifiers=this#subpath",
         "test_type": "component_parsing",
-        "title": "title",
-        "namespace": "namespace",
-        "name": "",
+        "type": "type",
+        "namespace": null,
+        "name": "namespace",
         "version": "version",
-        "qualifiers": {
-            "qualifiers" : "this"
-        },
+        "listOfQualifiers" : [["qualifiers", "this"]],
         "subpath": "subpath",
-        "is_purl": false
+        "is_purl": true
     },
 
     {
         "description": "test_missing_namespace",
-        "purl": "pkg:title/name@version?qualifiers=this#subpath",
+        "purl": "pkg:type/name@version?qualifiers=this#subpath",
         "test_type": "component_parsing",
-        "title": "title",
+        "type": "type",
         "namespace": null,
         "name": "name",
         "version": "version",
-        "qualifiers": {
-            "qualifiers" : "this"
-        },
+        "listOfQualifiers" : [["qualifiers", "this"]],
         "subpath": "subpath",
         "is_purl": true
     },
@@ -78,37 +68,38 @@
         "description": "test_empty_purl",
         "purl": "",
         "test_type": "component_parsing",
-        "title": null,
+        "type": null,
         "namespace": null,
         "name": null,
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": false
     },
 
+    
     {
         "description": "test_colon_in_type",
         "purl": "pkg:nginx:a/nginx@0.8.9",
         "test_type": "content_parsing",
-        "title": "nginx:a",
+        "type": "nginx:a",
         "namespace": null,
         "name": "nginx",
         "version": "0.8.9",
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
-        "is_purl": false
+        "is_purl": true
     },
 
     {
         "description": "test_separator_character_type",
         "purl": "pkg:n&g?inx/nginx@0.8.9",
         "test_type": "content_parsing",
-        "title": "n&g?inx",
+        "type": null,
         "namespace": null,
-        "name": "nginx",
-        "version": "0.8.9",
-        "qualifiers": null,
+        "name": "n&g",
+        "version": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": false
     },
@@ -117,11 +108,11 @@
         "description": "test_slash_after_scheme",
         "purl": "pkg:/maven/org.apache.commons/io",
         "test_type": "content_parsing",
-        "title": "maven",
+        "type": "maven",
         "namespace": "org.apache.commons",
         "name": "io",
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
@@ -130,11 +121,11 @@
         "description": "test_double_slash_after_scheme",
         "purl": "pkg://maven/org.apache.commons/io",
         "test_type": "content_parsing",
-        "title": "maven",
+        "type": "maven",
         "namespace": "org.apache.commons",
         "name": "io",
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
@@ -143,11 +134,11 @@
         "description": "test_triple_slash_after_scheme",
         "purl": "pkg:///maven/org.apache.commons/io",
         "test_type": "content_parsing",
-        "title": "maven",
+        "type": "maven",
         "namespace": "org.apache.commons",
         "name": "io",
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
@@ -156,52 +147,76 @@
         "description": "test_too_many_separators",
         "purl": "pkg:nginx/ngi@nx@0.8.9",
         "test_type": "content_parsing",
-        "title": null,
+        "type": "nginx",
         "namespace": null,
-        "name": null,
-        "version": null,
-        "qualifiers": null,
+        "name": "ngi@nx",
+        "version": "0.8.9",
+        "listOfQualifiers": [],
         "subpath": null,
-        "is_purl": false
+        "is_purl": true
     },
 
     {
         "description": "test_space_purl",
         "purl": "pkg:/ / / ",
         "test_type": "content_parsing",
-        "title": " ",
-        "namespace": " ",
-        "name": " ",
+        "type": null,
+        "namespace": null,
+        "name": null,
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
+        "subpath": null,
+        "is_purl": false
+    },
+
+    {
+        "description": "test_wrong_datatype",
+        "purl": 1234556,
+        "test_type": "content_parsing",
+        "type": null,
+        "namespace": null,
+        "name": null,
+        "version": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": false
     },
 
     {
         "description": "test_qualifier_wrong_syntax",
-        "purl": "pkg:title/name?qualifiers",
+        "purl": "pkg:type/name?qualifiers",
         "test_type": "content_parsing",
-        "title": "title",
+        "type": "type",
         "namespace": null,
         "name": "name",
         "version": null,
-        "qualifiers": {
-            "qualifiers" : null
-        },
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": false
     },
 
     {
-        "description": "test_comically_long_title",
-        "purl": "pkg:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/b/c",
+        "description": "test_null_purl",
+        "purl": null,
         "test_type": "content_parsing",
-        "title": null,
+        "type": null,
         "namespace": null,
         "name": null,
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
+        "subpath": null,
+        "is_purl": false
+    },
+
+    {
+        "description": "test_comically_long_type",
+        "purl": {"pattern": "a", "repeat": 10000000},
+        "test_type": "content_parsing",
+        "type": null,
+        "namespace": null,
+        "name": null,
+        "version": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": false
     },
@@ -210,11 +225,11 @@
         "description": "test_generic_purl",
         "purl": "pkg:generic/openssl@1.1.10g",
         "test_type": "purl_parsing",
-        "title": "generic",
+        "type": "generic",
         "namespace": null,
         "name": "openssl",
         "version": "1.1.10g",
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
@@ -223,13 +238,11 @@
         "description": "test_generic_purl_urlqualifier",
         "purl": "pkg:generic/bitwarderl?vcs_url=git%2Bhttps://git.fsfe.org/dxtr/bitwarderl%40cc55108da32",
         "test_type": "purl_parsing",
-        "title": "generic",
+        "type": "generic",
         "namespace": null,
         "name": "bitwarderl",
         "version": null,
-        "qualifiers": {
-            "vcs_url" : "git%2Bhttps://git.fsfe.org/dxtr/bitwarderl%40cc55108da32"
-        },
+        "listOfQualifiers": [["vcs_url", "git%2Bhttps://git.fsfe.org/dxtr/bitwarderl%40cc55108da32"]],
         "subpath": null,
         "is_purl": true
     },
@@ -238,11 +251,11 @@
         "description": "test_maven_purl",
         "purl": "pkg:maven/org.apache.commons/io@1.3.4",
         "test_type": "purl_parsing",
-        "title": "maven",
+        "type": "maven",
         "namespace": "org.apache.commons",
         "name": "io",
         "version": "1.3.4",
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
@@ -251,11 +264,11 @@
         "description": "test_golang_purl",
         "purl": "pkg:GOLANG/google.golang.org/genproto#/googleapis/api/annotations/",
         "test_type": "purl_parsing",
-        "title": "golang",
+        "type": "golang",
         "namespace": "google.golang.org",
         "name": "genproto",
         "version": null,
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": "googleapis/api/annotations",
         "is_purl": true
     },
@@ -264,32 +277,24 @@
         "description": "test_conda_purl",
         "purl": "pkg:conda/absl-py@0.4.1?build=py36h06a4308_0&channel=main&subdir=linux-64&type=tar.bz2",
         "test_type": "purl_parsing",
-        "title": "conda",
+        "type": "conda",
         "namespace": null,
         "name": "absl-py",
         "version": "0.4.1",
-        "qualifiers": {
-            "build" : "py36h06a4308_0",
-            "channel" : "main",
-            "subdir" : "linux-64",
-            "type" : "tar.bz2"
-        },
+        "listOfQualifiers": [["build", "py36h06a4308_0"], ["channel","main"], ["subdir", "linux-64"], ["type", "tar.bz2"]],
         "subpath": null,
         "is_purl": true
     },
 
     {
         "description": "test_rpm_purl",
-        "purl": "pkg:Rpm/fedora/curl@7.50.3-1.fc25?Arch=i386&Distro=fedora-25",
+        "purl": "pkg:Rpm/fedora/curl@7.50.3-1.fc25?arch=i386&distro=fedora-25",
         "test_type": "purl_parsing",
-        "title": "rpm",
+        "type": "rpm",
         "namespace": "fedora",
         "name": "curl",
         "version": "7.50.3-1.fc25",
-        "qualifiers": {
-            "arch" : "i386",
-            "distro" : "fedora-25"
-        },
+        "listOfQualifiers": [["arch", "i386"], ["distro", "fedora-25"]],
         "subpath": null,
         "is_purl": true
     },
@@ -298,11 +303,11 @@
         "description": "test_bitbucket_purl",
         "purl": "pkg:bitbucket/birKenfeld/pyGments-main@244fd47e07d1014f0aed9c",
         "test_type": "purl_parsing",
-        "title": "bitbucket",
-        "namespace": "birkenfeld",
-        "name": "pygments-main",
+        "type": "bitbucket",
+        "namespace": "birKenfeld",
+        "name": "pyGments-main",
         "version": "244fd47e07d1014f0aed9c",
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
@@ -311,26 +316,24 @@
         "description": "test_swift_purl",
         "purl": "pkg:swift/github.com/Alamofire/Alamofire@5.4.3",
         "test_type": "purl_parsing",
-        "title": "swift",
+        "type": "swift",
         "namespace": "github.com/Alamofire",
         "name": "Alamofire",
         "version": "5.4.3",
-        "qualifiers": null,
+        "listOfQualifiers": [],
         "subpath": null,
         "is_purl": true
     },
 
     {
         "description": "test_ruby_gem_purl",
-        "purl": "pkg:gem/jruby-launcher@1.1.2?Platform=java",
+        "purl": "pkg:gem/jruby-launcher@1.1.2?platform=java",
         "test_type": "purl_parsing",
-        "title": "gem",
+        "type": "gem",
         "namespace": null,
         "name": "jruby-launcher",
         "version": "1.1.2",
-        "qualifiers": {
-            "platform": "java"
-        },
+        "listOfQualifiers": [["platform", "java"]],
         "subpath": null,
         "is_purl": true
     },
@@ -339,13 +342,11 @@
         "description": "test_docker_purl",
         "purl": "pkg:docker/customer/dockerimage@sha256:244fd47e07d1004f0aed9c?repository_url=gcr.io",
         "test_type": "purl_parsing",
-        "title": "docker",
+        "type": "docker",
         "namespace": "customer",
         "name": "dockerimage",
         "version": "sha256:244fd47e07d1004f0aed9c",
-        "qualifiers": {
-            "repository_url": "gcr.io"
-        },
+        "listOfQualifiers": [["repository_url", "gcr.io"]],
         "subpath": null,
         "is_purl": true
     },
@@ -354,14 +355,11 @@
         "description": "test_debian_purl",
         "purl": "pkg:deb/debian/curl@7.50.3-1?arch=i386&distro=jessie",
         "test_type": "purl_parsing",
-        "title": "deb",
+        "type": "deb",
         "namespace": "debian",
         "name": "curl",
         "version": "7.50.3-1",
-        "qualifiers": {
-            "arch": "i386",
-            "distro": "jessie"
-        },
+        "listOfQualifiers": [["arch", "i386"], ["distro", "jessie"]],
         "subpath": null,
         "is_purl": true
     }
