@@ -21,6 +21,7 @@ class PurlParser:
         
     def parse(self):
         if isinstance(self.purl, str) and len(self.purl) > len(PURL_PREFIX)+1 and len(self.purl) <= MAX_PURL_LENGTH:
+            self.purl = self.purl.replace(" ", "")
             self.parseSubpath()
             self.parseQualifier()
             self.parseScheme()
@@ -28,6 +29,8 @@ class PurlParser:
             self.parseVersion()
             self.parseName()
             self.parseNamespace()
+        else:
+            self.validPurl = False
 
             
     def parseSubpath(self):
@@ -46,7 +49,10 @@ class PurlParser:
             self.qualifiers = purlSplit[-1]
             key_and_values = self.qualifiers.split(SEPARATOR_BETWEEN_QUALIFIERS)
             for i in key_and_values:
-                self.listOfQualifiers.append(i.split(SEPARATOR_BETWEEN_KEY_AND_VALUE))
+                if len(i.split(SEPARATOR_BETWEEN_KEY_AND_VALUE)) == 2:
+                    self.listOfQualifiers.append(i.split(SEPARATOR_BETWEEN_KEY_AND_VALUE))
+                else:
+                    self.validPurl = False
             self.updatePurlIfComponentAtTheback(self.qualifiers)
     
     def parseScheme(self):
@@ -76,14 +82,17 @@ class PurlParser:
     
     def parseName(self):
         purlSplit = self.splitComponentsByNameSeparator()
-        if len(purlSplit) > 1:
-            self.name = purlSplit[-1]
-            self.updatePurlIfComponentAtTheback(self.name)
-        elif purlSplit[0] != "":
-            self.name = self.purl
-            self.purl = ""
+        if self.purl != "":
+            if len(purlSplit) > 1:
+                self.name = purlSplit[-1]
+                self.updatePurlIfComponentAtTheback(self.name)
+            elif purlSplit[0] != "":
+                self.name = self.purl
+                self.purl = ""
+            else:
+                self.validPurl = False
         else:
-            self.validPurl = False
+            self.validPurl = False 
     
     def parseNamespace(self):
         purlSplit = self.purl.rstrip('/').lstrip('/')
