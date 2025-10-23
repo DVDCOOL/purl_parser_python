@@ -39,6 +39,9 @@ class Database:
                             FOREIGN KEY (nameID) REFERENCES Names(nameID), 
                             FOREIGN KEY (versionID) REFERENCES Versions(versionID)
                         )""")
+        self.con.execute("""CREATE TABLE IF NOT EXISTS Purls (
+                            PurlID INTEGER PRIMARY KEY DEFAULT nextval('sequ_pack'), 
+                            Purl VARCHAR)""")
 
 
     def createSequences(self):
@@ -50,8 +53,12 @@ class Database:
         self.con.table("Names").show()
         self.con.table("Packages").show()
         self.con.table("Versions").show()
+        self.con.table("Purls").show()
 
-
+    def insertPurl(self, purl):
+        self.con.execute("INSERT INTO Purls (Purl) VALUES (?)", (purl,))
+        
+    
     #Name as String, Version as String "1.1.1"
     def insertPackage(self, packages):
         for package in packages:
