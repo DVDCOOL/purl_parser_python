@@ -1,25 +1,26 @@
+import json
 from purl_parserproject.purls import purls
 from purl_parserproject.purl_parser import PurlParser
-from database.duckDB.functionsForDB import Database
-from database.DBConfigs import dbPath
+from database.dbmanager import DBManager
 
 
 def main():
-    uidb = Database(dbPath)
-    uidb.dropTables()
-    uidb.createTables()
-    
-    for purl in purls:
-        parsedPurl = PurlParser(purl)
-        if parsedPurl.validPurl:
-            uidb.insertPurl(parsedPurl.inputPurl)
-        else:
-            print(f"Invalid purl skipped: {purl}")
-    
-    print("Inserted PURLs into the database:")
-    uidb.showAllTables()
-    count = uidb.con.execute("SELECT COUNT(*) FROM Purls").fetchone()[0]
-    print(f"Total PURLs: {count}")
-    
+    database = DBManager()
+
+    for i in purls:
+        purl = PurlParser(i)
+        if purl.validPurl:
+            json_str = {
+                "type": purl.type,
+                "namespace": purl.namespace,
+                "name": purl.name,
+                "version": purl.version,
+                "qualifiers": purl.qualifiers,
+                "subpath": purl.subpath
+            }
+            json_str = json.dumps(json_str)
+            database.insert_purl(json_str)
+
+
 if __name__ == "__main__":
     main()
