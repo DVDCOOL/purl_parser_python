@@ -4,264 +4,196 @@ class Database:
     def __init__(self, db_path):
         self.dbPath = db_path
         self.con = duckdb.connect(self.dbPath)
-        
-    def dropTables(self):
-        # Drop in reverse order due to foreign keys
-        self.con.execute("DROP TABLE IF EXISTS Packages")
-        self.con.execute("DROP TABLE IF EXISTS Qualifiers")
-        self.con.execute("DROP TABLE IF EXISTS QualifierKeys")
-        self.con.execute("DROP TABLE IF EXISTS QualifierValues")
-        self.con.execute("DROP TABLE IF EXISTS Versions") 
-        self.con.execute("DROP TABLE IF EXISTS Names")
-        self.con.execute("DROP TABLE IF EXISTS Types")
-
-        # Drop all sequences
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_pack")
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_qual")
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_key")
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_value")
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_ver") 
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_names")
-        self.con.execute("DROP SEQUENCE IF EXISTS sequ_types")
-
-
-    def createTables(self):
-        # Create Table for Package Names
-        self.createSequences()
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Types (
-                            TypeID INTEGER PRIMARY KEY DEFAULT nextval('sequ_types'), 
-                            Type VARCHAR)""")
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Namespaces (
-                            NamespaceID INTEGER PRIMARY KEY DEFAULT nextval('sequ_namespace'), 
-                            Namespace VARCHAR
-                        )""")
-        
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Names (
-                            NameID INTEGER PRIMARY KEY DEFAULT nextval('sequ_names'), 
-                            Name VARCHAR)""")
-        # Create Table for Versions
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Versions (
-                            VersionID INTEGER PRIMARY KEY DEFAULT nextval('sequ_ver'),
-                            Version VARCHAR,
-                            Major INTEGER,
-                            Minor INTEGER,
-                            Patch VARCHAR
-                        )""")
-
-        self.con.execute("""CREATE TABLE IF NOT EXISTS QualifierKeys (
-                            KeyID INTEGER PRIMARY KEY DEFAULT nextval('sequ_key'),
-                            Key VARCHAR
-                        )""")
-        self.con.execute("""CREATE TABLE IF NOT EXISTS QualifierValues (
-                            ValueID INTEGER PRIMARY KEY DEFAULT nextval('sequ_value'),
-                            Value VARCHAR
-                        )""")
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Qualifiers (
-                            QualifierID INTEGER PRIMARY KEY DEFAULT nextval('sequ_qual'),
-                            KeyID INTEGER,
-                            ValueID INTEGER,
-                            FOREIGN KEY (KeyID) REFERENCES QualifierKeys(KeyID),
-                            FOREIGN KEY (ValueID) REFERENCES QualifierValues(ValueID)
-                        )""")
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Subpaths (
-                            SubpathID INTEGER PRIMARY KEY DEFAULT nextval('sequ_subpath'),
-                            Subpath VARCHAR
-                         )""")
-        # Create Join Table
-        self.con.execute("""CREATE TABLE IF NOT EXISTS Packages (
-                            PackageID INTEGER PRIMARY KEY DEFAULT nextval('sequ_pack'),
-                            TypeID INTEGER,
-                            NamespaceID INTEGER,
-                            NameID INTEGER, 
-                            VersionID INTEGER,
-                            QualifierID INTEGER,
-                            SubpathID INTEGER,
-                            FOREIGN KEY (TypeID) REFERENCES Types(TypeID),
-                            FOREIGN KEY (NamespaceID) REFERENCES Namespaces(NamespaceID),
-                            FOREIGN KEY (nameID) REFERENCES Names(nameID), 
-                            FOREIGN KEY (versionID) REFERENCES Versions(versionID),
-                            FOREIGN KEY (QualifierID) REFERENCES Qualifiers(QualifierID),
-                            FOREIGN KEY (SubpathID) REFERENCES Subpaths(SubpathID)
-                        )""")
-
-
-    def createSequences(self):
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_types START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_namespace START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_names START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_ver START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_pack START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_qual START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_key START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_value START 1")
-        self.con.execute("CREATE SEQUENCE IF NOT EXISTS sequ_subpath START 1")
-        
+    
     def showAllTables(self):
-        self.con.table("Types").show()
-        self.con.table("Namespaces").show()
-        self.con.table("Names").show()
-        self.con.table("Versions").show()
-        self.con.table("Qualifiers").show()
-        self.con.table("QualifierKeys").show()
-        self.con.table("QualifierValues").show()
-        self.con.table("Subpaths").show()
-        self.con.table("Packages").show()
+        
+        # Get all table names from the database
+        tables = self.con.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'main'
+            ORDER BY table_name
+        """).fetchall()
+        
+        for (table,) in tables:
+            print(f"\n--- {table} ---")
+            self.con.table(table).show()
 
-
-    #Name as String, Version as String "1.1.1"
-    def insertPackage(self, type, namespace, name, version, qualfiers, subpath):
+    def insertPackage(self, type, namespace, name, version, qualifiers, subpath):
         if not name or not type:
             print("Package name and type is required")
-            return
+            return False
         
+        # Handle version
         if not version:
-            versionCorrect = True
-            versionIndex = 0
+            versionIndex = None
         else:
-            versionCorrect, newVersion = self.isVersionSynCorrect(version)
-            if versionCorrect:
-                versionIndex = self.getVersionIndex(newVersion, *self.encodeVersion(newVersion))
-            else:
-                print("The Version has a wrong sytax " + version + " "+ type + " " + name)
-                return
+            versionCorrect, newVersion = self.isVersionSyntaxCorrect(version)
+            if not versionCorrect:
+                print(f"Invalid version syntax: {version} for {type}/{name}")
+                return False
+            versionIndex = self.getVersionIndex(newVersion, *self.encodeVersion(newVersion))
+        
+        # Get indexes for core fields
         typeIndex = self.getTypeIndex(type)
         namespaceIndex = self.getNamespaceIndex(namespace) if namespace else None
         nameIndex = self.getNameIndex(name)
         subpathIndex = self.getSubpathIndex(subpath) if subpath else None
-        for qualifier in qualfiers:
+        
+        # Handle qualifiers (default to empty list if None)
+        if not qualifiers:
+            qualifiers = [(None, None)]
+        
+        inserted_count = 0
+        for qualifier in qualifiers:
             qualifierIndex, qualifierCorrect = self.getQualifierIndex(qualifier)
-            if qualifierCorrect:
-                saved = self.con.execute("SELECT * FROM Packages WHERE TypeID=? AND NamespaceID=? AND NameID=? AND VersionID=? AND QualifierID=? AND SubpathID=?", (typeIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex)).fetchone()
-                if saved is None:
-                    self.con.execute("INSERT INTO Packages (TypeID, NamespaceID, NameID, VersionID, QualifierID, SubpathID) VALUES(?, ?, ?, ?, ?, ?)", (typeIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex))
-                else:
-                    print("Package already saved")
-
             
+            # Check if package already exists
+            exists = self.con.execute("""
+                SELECT 1 FROM Packages 
+                WHERE TypeID=? AND NamespaceID IS NOT DISTINCT FROM ?
+                AND NameID=? AND VersionID IS NOT DISTINCT FROM ?
+                AND QualifierID IS NOT DISTINCT FROM ? AND SubpathID IS NOT DISTINCT FROM ?
+            """, (typeIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex)).fetchone()
             
-
-    def getTypeIndex(self, type):
-        saved = self.con.execute("SELECT * FROM Types WHERE Type=?", (type,)).fetchone()
-        if saved is None:
-            self.con.execute("INSERT INTO Types (type) VALUES (?)", (type,))
-            saved = self.con.execute("SELECT * FROM Types WHERE Type=?", (type,)).fetchone()
-        return saved[0]
-    
-    def getNamespaceIndex(self, namespace):
-        saved = self.con.execute("SELECT * FROM Namespaces WHERE Namespace=?", (namespace,)).fetchone()
-        if saved is None:
-            self.con.execute("INSERT INTO Namespaces (Namespace) VALUES (?)", (namespace,))
-            saved = self.con.execute("SELECT * FROM Namespaces WHERE Namespace=?", (namespace,)).fetchone()
-        return saved[0]
-
-    def getNameIndex(self, name):
-        saved = self.con.execute("SELECT * FROM Names WHERE Name=?", (name,)).fetchone()
-        if saved is None:
-            self.con.execute("INSERT INTO Names (name) VALUES (?)", (name,))
-            saved = self.con.execute("SELECT * FROM Names WHERE Name=?", (name,)).fetchone()
-        return saved[0]
-    
-    def getQualifierIndex(self, qualifier):
-        key, value = qualifier
-        if key and value:
-            keyIndex = self.getQualifierKeyIndex(key)
-            valueIndex = self.getQualifierValueIndex(value)
-            
-            saved = self.con.execute("SELECT * FROM Qualifiers WHERE KeyID=? AND ValueID=?", (keyIndex, valueIndex)).fetchone()
-            if saved is None:
-                self.con.execute("INSERT INTO Qualifiers (KeyID, ValueID) VALUES (?, ?)", (keyIndex, valueIndex))
-                saved = self.con.execute("SELECT * FROM Qualifiers WHERE KeyID=? AND ValueID=?", (keyIndex, valueIndex)).fetchone()
-            return saved[0], True
-        else:
-            return None, False
-
-    def getQualifierKeyIndex(self, key):
-        saved = self.con.execute("SELECT * FROM QualifierKeys WHERE Key=?", (key,)).fetchone()
-        if saved is None:
-            self.con.execute("INSERT INTO QualifierKeys (Key) VALUES (?)", (key,))
-            saved = self.con.execute("SELECT * FROM QualifierKeys WHERE Key=?", (key,)).fetchone()
-        return saved[0]
-    
-    def getQualifierValueIndex(self, value):
-        saved = self.con.execute("SELECT * FROM QualifierValues WHERE Value=?", (value,)).fetchone()
-        if saved is None:
-            self.con.execute("INSERT INTO QualifierValues (Value) VALUES (?)", (value,))
-            saved = self.con.execute("SELECT * FROM QualifierValues WHERE Value=?", (value,)).fetchone()
-        return saved[0]
-    
-    def getSubpathIndex(self, subpath):
-        saved = self.con.execute("SELECT * FROM Subpaths WHERE Subpath=?", (subpath,)).fetchone()
-        if saved is None:
-            self.con.execute("INSERT INTO Subpaths (Subpath) VALUES (?)", (subpath,))
-            saved = self.con.execute("SELECT * FROM Subpaths WHERE Subpath=?", (subpath,)).fetchone()
-        return saved[0]
-
-    def is_string_an_integer(self, s):
-        try:
-            int(s)
+            if not exists:
+                self.con.execute("""
+                    INSERT INTO Packages (TypeID, NamespaceID, NameID, VersionID, QualifierID, SubpathID) 
+                    VALUES(?, ?, ?, ?, ?, ?)
+                """, (typeIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex))
+                inserted_count += 1
+        
+        if inserted_count > 0:
             return True
-        except ValueError:
+        else:
+            print("Package already exists")
             return False
 
-    def isVersionSynCorrect(self, version):
-        versionSpecs = version.split(".")
-        versionCorrect = True
-        if len(versionSpecs) < 2 or len(versionSpecs) > 3:
-            versionCorrect = False
-        elif len(versionSpecs) == 2:
-            version = version + ".0"
-            
-        major, minor, patch = self.encodeVersion(version)
-        while not self.is_string_an_integer(major) and len(major) > 0:
+    def getTypeIndex(self, type):
+        """Get or create Type ID"""
+        return self._getOrInsertId("Types", "Type", type, "TypeID")
+    
+    def getNamespaceIndex(self, namespace):
+        """Get or create Namespace ID"""
+        return self._getOrInsertId("Namespaces", "Namespace", namespace, "NamespaceID")
 
-            major = major[1:]
-        if major == "":
+    def getNameIndex(self, name):
+        """Get or create Name ID"""
+        return self._getOrInsertId("Names", "Name", name, "NameID")
+    
+    def getSubpathIndex(self, subpath):
+        """Get or create Subpath ID"""
+        return self._getOrInsertId("Subpaths", "Subpath", subpath, "SubpathID")
+    
+    def _getOrInsertId(self, table, column, value, id_column):
+        """Generic method to get or insert a lookup value and return its ID"""
+        # Try to get existing
+        result = self.con.execute(f"SELECT {id_column} FROM {table} WHERE {column}=?", (value,)).fetchone()
+        
+        if result is None:
+            # Insert and return the new ID
+            self.con.execute(f"INSERT INTO {table} ({column}) VALUES (?)", (value,))
+            result = self.con.execute(f"SELECT {id_column} FROM {table} WHERE {column}=?", (value,)).fetchone()
+        
+        return result[0]
+    
+    def getQualifierIndex(self, qualifier):
+        if not qualifier or len(qualifier) != 2:
+            return None, False
+        
+        key, value = qualifier
+        if not key or not value:
+            return None, False
+        
+        keyIndex = self._getOrInsertId("QualifierKeys", "Key", key, "KeyID")
+        valueIndex = self._getOrInsertId("QualifierValues", "Value", value, "ValueID")
+        
+        # Get or create qualifier
+        result = self.con.execute("""
+            SELECT QualifierID FROM Qualifiers 
+            WHERE KeyID=? AND ValueID=?
+        """, (keyIndex, valueIndex)).fetchone()
+        
+        if result is None:
+            self.con.execute("""
+                INSERT INTO Qualifiers (KeyID, ValueID) VALUES (?, ?)
+            """, (keyIndex, valueIndex))
+            result = self.con.execute("""
+                SELECT QualifierID FROM Qualifiers 
+                WHERE KeyID=? AND ValueID=?
+            """, (keyIndex, valueIndex)).fetchone()
+        
+        return result[0], True
+
+    def isVersionSyntaxCorrect(self, version):
+        """Validate and normalize version string"""
+        versionSpecs = version.split(".")
+        
+        if len(versionSpecs) < 2 or len(versionSpecs) > 3:
             return False, version
-        while not self.is_string_an_integer(minor) and len(minor) > 0:
-            minor = minor[1:]
-        if minor == "":
-            return False, version    
-        version= major + "." + minor + "." + patch
-        return versionCorrect, version
-            
+        
+        if len(versionSpecs) == 2:
+            version = version + ".0"
+        
+        major, minor, patch = self.encodeVersion(version)
+        
+        # Extract numeric part from major
+        major_numeric = ''.join(c for c in major if c.isdigit())
+        if not major_numeric:
+            return False, version
+        
+        # Extract numeric part from minor
+        minor_numeric = ''.join(c for c in minor if c.isdigit())
+        if not minor_numeric:
+            return False, version
+        
+        # Reconstruct version
+        normalized_version = f"{major_numeric}.{minor_numeric}.{patch}"
+        return True, normalized_version
 
     def encodeVersion(self, version):
+        """Split version string into major, minor, patch"""
         versionSpecs = version.split(".")
         return versionSpecs[0], versionSpecs[1], versionSpecs[2]
 
-
     def getVersionIndex(self, versionChar, major, minor, patch):
+        """Get or create Version ID"""
+        result = self.con.execute("""
+            SELECT VersionID FROM Versions WHERE Version = ?
+        """, (versionChar,)).fetchone()
         
-        saved = self.con.execute("SELECT * FROM Versions WHERE Version = ?", (versionChar,)).fetchone()
-        if saved is None:
-
-            self.con.execute("INSERT INTO Versions (Version, Major, Minor, Patch) VALUES (?, ?, ?, ?)", (versionChar, major, minor, patch))
-            saved = self.con.execute("SELECT * FROM Versions WHERE Version = ?", (versionChar,)).fetchone()
-        return saved[0]
-
+        if result is None:
+            self.con.execute("""
+                INSERT INTO Versions (Version, Major, Minor, Patch) 
+                VALUES (?, ?, ?, ?)
+            """, (versionChar, int(major), int(minor), patch))
+            result = self.con.execute("""
+                SELECT VersionID FROM Versions WHERE Version = ?
+            """, (versionChar,)).fetchone()
+        
+        return result[0]
 
     def getAllPackages(self):
-        """Get all packages with versions (sorted descending) and qualifiers grouped as lists"""
         query = """
-            SELECT 
-                LIST(DISTINCT p.PackageID ORDER BY p.PackageID) as PackageIDs,
-                t.Type,
-                ns.Namespace,
-                n.Name,
-                LIST(DISTINCT v.Version ORDER BY v.Version DESC) FILTER (WHERE v.Version IS NOT NULL) as Versions,
-                LIST(DISTINCT [qk.Key, qv.Value]) FILTER (WHERE qk.Key IS NOT NULL) as Qualifiers,
-                LIST(DISTINCT sp.Subpath) FILTER (WHERE sp.Subpath IS NOT NULL) as Subpaths
-            FROM Packages p
-            LEFT JOIN Types t ON p.TypeID = t.TypeID
-            LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
-            LEFT JOIN Names n ON p.NameID = n.NameID
-            LEFT JOIN Versions v ON p.VersionID = v.VersionID
-            LEFT JOIN Qualifiers q ON p.QualifierID = q.QualifierID
-            LEFT JOIN QualifierKeys qk ON q.KeyID = qk.KeyID
-            LEFT JOIN QualifierValues qv ON q.ValueID = qv.ValueID
-            LEFT JOIN Subpaths sp ON p.SubpathID = sp.SubpathID
-            GROUP BY t.Type, ns.Namespace, n.Name, sp.Subpath
-            ORDER BY MIN(p.PackageID)
-        """
+        SELECT 
+            LIST(DISTINCT p.PackageID ORDER BY p.PackageID) as PackageIDs,
+            t.Type,
+            ns.Namespace,
+            n.Name,
+            LIST(DISTINCT v.Version ORDER BY v.Version DESC) FILTER (WHERE v.Version IS NOT NULL) as Versions,
+            LIST(DISTINCT [qk.Key, qv.Value]) FILTER (WHERE qk.Key IS NOT NULL) as Qualifiers,
+            LIST(DISTINCT sp.Subpath) FILTER (WHERE sp.Subpath IS NOT NULL) as Subpaths
+        FROM Packages p
+        LEFT JOIN Types t ON p.TypeID = t.TypeID
+        LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
+        LEFT JOIN Names n ON p.NameID = n.NameID
+        LEFT JOIN Versions v ON p.VersionID = v.VersionID
+        LEFT JOIN Qualifiers q ON p.QualifierID = q.QualifierID
+        LEFT JOIN QualifierKeys qk ON q.KeyID = qk.KeyID
+        LEFT JOIN QualifierValues qv ON q.ValueID = qv.ValueID
+        LEFT JOIN Subpaths sp ON p.SubpathID = sp.SubpathID
+        GROUP BY t.Type, ns.Namespace, n.Name, sp.Subpath
+        ORDER BY MIN(p.PackageID)
+    """
         self.con.query(query).show()
         return self.con.execute(query).fetchall()

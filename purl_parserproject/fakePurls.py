@@ -2,127 +2,137 @@ from faker import Faker
 import random
 import os
 
-fake = Faker()
+class PurlGenerator:
+    def __init__(self):
+        self.fake = Faker()
 
-def generate_npm_purl():
-    namespace = f"@{fake.word().lower()}" if random.choice([True, False]) else ""
-    name = fake.word().lower().replace('_', '-')
-    version = f"{fake.random_int(0, 9)}.{fake.random_int(0, 20)}.{fake.random_int(0, 50)}"
-    qualifiers = ""
-    for _ in range(random.randint(0, 10)):
-        key = fake.word().lower()
-        value = fake.word().lower()
-        qualifiers += f"{key}={value}&"
-    qualifiers = qualifiers.rstrip('&')
-    subpath = ""
-    for _ in range(random.randint(0, 3)):
-        subpath += f"/{fake.word().lower()}"
-    subpath = subpath.lstrip('/')
-    if qualifiers != "":
-        qualifiers = "?" + qualifiers
-    
-    if subpath != "":
-        subpath = "#" + subpath
-    if namespace:
-        return f"pkg:npm/{namespace}/{name}@{version}{qualifiers}{subpath}"
-    return f"pkg:npm/{name}@{version}{qualifiers}{subpath}"
+    def generate_npm_purl(self):
+        namespace = f"@{self.fake.word().lower()}" if random.choice([True, False]) else ""
+        name = self.fake.word().lower().replace('_', '-')
+        version = f"{self.fake.random_int(0, 9)}.{self.fake.random_int(0, 20)}.{self.fake.random_int(0, 50)}"
+        qualifiers = ""
+        for _ in range(random.randint(0, 10)):
+            key = self.fake.word().lower()
+            value = self.fake.word().lower()
+            qualifiers += f"{key}={value}&"
+        qualifiers = qualifiers.rstrip('&')
+        subpath = ""
+        for _ in range(random.randint(0, 3)):
+            subpath += f"/{self.fake.word().lower()}"
+        subpath = subpath.lstrip('/')
+        if qualifiers != "":
+            qualifiers = "?" + qualifiers
+        
+        if subpath != "":
+            subpath = "#" + subpath
+        if namespace:
+            return f"pkg:npm/{namespace}/{name}@{version}{qualifiers}{subpath}"
+        return f"pkg:npm/{name}@{version}{qualifiers}{subpath}"
 
-def generate_pypi_purl():
-    name = fake.word().lower().replace(' ', '-')
-    version = f"{fake.random_int(0, 9)}.{fake.random_int(0, 20)}.{fake.random_int(0, 50)}"
-    qualifiers = ""
-    for _ in range(random.randint(0, 10)):
-        key = fake.word().lower()
-        value = fake.word().lower()
-        qualifiers += f"{key}={value}&"
-    qualifiers = qualifiers.rstrip('&')
-    subpath = ""
-    for _ in range(random.randint(0, 3)):
-        subpath += f"/{fake.word().lower()}"
-    subpath = subpath.lstrip('/')
-    if qualifiers != "":
-        qualifiers = "?" + qualifiers
-    
-    if subpath != "":
-        subpath = "#" + subpath
-    return f"pkg:pypi/{name}@{version}{qualifiers}{subpath}"
+    def generate_pypi_purl(self):
+        name = self.fake.word().lower().replace(' ', '-')
+        version = f"{self.fake.random_int(0, 9)}.{self.fake.random_int(0, 20)}.{self.fake.random_int(0, 50)}"
+        qualifiers = ""
+        for _ in range(random.randint(0, 10)):
+            key = self.fake.word().lower()
+            value = self.fake.word().lower()
+            qualifiers += f"{key}={value}&"
+        qualifiers = qualifiers.rstrip('&')
+        subpath = ""
+        for _ in range(random.randint(0, 3)):
+            subpath += f"/{self.fake.word().lower()}"
+        subpath = subpath.lstrip('/')
+        if qualifiers != "":
+            qualifiers = "?" + qualifiers
+        
+        if subpath != "":
+            subpath = "#" + subpath
+        return f"pkg:pypi/{name}@{version}{qualifiers}{subpath}"
 
-def generate_maven_purl():
-    group_id = f"{fake.word().lower()}.{fake.word().lower()}"
-    artifact_id = fake.word().lower().replace(' ', '-')
-    version = f"{fake.random_int(0, 9)}.{fake.random_int(0, 20)}.{fake.random_int(0, 50)}"
-    qualifiers = ""
-    for _ in range(random.randint(0, 10)):
-        key = fake.word().lower()
-        value = fake.word().lower()
-        qualifiers += f"{key}={value}&"
-    qualifiers = qualifiers.rstrip('&')
-    subpath = ""
-    for _ in range(random.randint(0, 3)):
-        subpath += f"/{fake.word().lower()}"
-    subpath = subpath.lstrip('/')
-    if qualifiers != "":
-        qualifiers = "?" + qualifiers
-    
-    if subpath != "":
-        subpath = "#" + subpath
-    return f"pkg:maven/{group_id}/{artifact_id}@{version}{qualifiers}{subpath}"
+    def generate_maven_purl(self):
+        group_id = f"{self.fake.word().lower()}.{self.fake.word().lower()}"
+        artifact_id = self.fake.word().lower().replace(' ', '-')
+        version = f"{self.fake.random_int(0, 9)}.{self.fake.random_int(0, 20)}.{self.fake.random_int(0, 50)}"
+        qualifiers = ""
+        for _ in range(random.randint(0, 10)):
+            key = self.fake.word().lower()
+            value = self.fake.word().lower()
+            qualifiers += f"{key}={value}&"
+        qualifiers = qualifiers.rstrip('&')
+        subpath = ""
+        for _ in range(random.randint(0, 3)):
+            subpath += f"/{self.fake.word().lower()}"
+        subpath = subpath.lstrip('/')
+        if qualifiers != "":
+            qualifiers = "?" + qualifiers
+        
+        if subpath != "":
+            subpath = "#" + subpath
+        return f"pkg:maven/{group_id}/{artifact_id}@{version}{qualifiers}{subpath}"
 
-def generate_docker_purl():
-    namespace = fake.word().lower()
-    name = fake.word().lower()
-    tag = random.choice([f"v{fake.random_int(1, 9)}.{fake.random_int(0, 20)}"])
-    qualifiers = ""
-    for _ in range(random.randint(0, 10)):
-        key = fake.word().lower()
-        value = fake.word().lower()
-        qualifiers += f"{key}={value}&"
-    qualifiers = qualifiers.rstrip('&')
-    subpath = ""
-    for _ in range(random.randint(0, 3)):
-        subpath += f"/{fake.word().lower()}"
-    subpath = subpath.lstrip('/')
-    if qualifiers != "":
-        qualifiers = "?" + qualifiers
-    
-    if subpath != "":
-        subpath = "#" + subpath
-    return f"pkg:docker/{namespace}/{name}@{tag}{qualifiers}{subpath}"
+    def generate_docker_purl(self):
+        namespace = self.fake.word().lower()
+        name = self.fake.word().lower()
+        tag = random.choice([f"v{self.fake.random_int(1, 9)}.{self.fake.random_int(0, 20)}"])
+        qualifiers = ""
+        for _ in range(random.randint(0, 10)):
+            key = self.fake.word().lower()
+            value = self.fake.word().lower()
+            qualifiers += f"{key}={value}&"
+        qualifiers = qualifiers.rstrip('&')
+        subpath = ""
+        for _ in range(random.randint(0, 3)):
+            subpath += f"/{self.fake.word().lower()}"
+        subpath = subpath.lstrip('/')
+        if qualifiers != "":
+            qualifiers = "?" + qualifiers
+        
+        if subpath != "":
+            subpath = "#" + subpath
+        return f"pkg:docker/{namespace}/{name}@{tag}{qualifiers}{subpath}"
 
-def generate_cargo_purl():
-    name = fake.word().lower().replace(' ', '_')
-    version = f"{fake.random_int(0, 9)}.{fake.random_int(0, 20)}.{fake.random_int(0, 50)}"
-    qualifiers = ""
-    for _ in range(random.randint(0, 10)):
-        key = fake.word().lower()
-        value = fake.word().lower()
-        qualifiers += f"{key}={value}&"
-    qualifiers = qualifiers.rstrip('&')
-    subpath = ""
-    for _ in range(random.randint(0, 3)):
-        subpath += f"/{fake.word().lower()}"
-    subpath = subpath.lstrip('/')
-    if qualifiers != "":
-        qualifiers = "?" + qualifiers
-    
-    if subpath != "":
-        subpath = "#" + subpath
-    return f"pkg:cargo/{name}@{version}{qualifiers}{subpath}"
+    def generate_cargo_purl(self):
+        name = self.fake.word().lower().replace(' ', '_')
+        version = f"{self.fake.random_int(0, 9)}.{self.fake.random_int(0, 20)}.{self.fake.random_int(0, 50)}"
+        qualifiers = ""
+        for _ in range(random.randint(0, 10)):
+            key = self.fake.word().lower()
+            value = self.fake.word().lower()
+            qualifiers += f"{key}={value}&"
+        qualifiers = qualifiers.rstrip('&')
+        subpath = ""
+        for _ in range(random.randint(0, 3)):
+            subpath += f"/{self.fake.word().lower()}"
+        subpath = subpath.lstrip('/')
+        if qualifiers != "":
+            qualifiers = "?" + qualifiers
+        
+        if subpath != "":
+            subpath = "#" + subpath
+        return f"pkg:cargo/{name}@{version}{qualifiers}{subpath}"
 
-# Mix of different types
-generators = [generate_npm_purl, generate_pypi_purl, generate_maven_purl, 
-              generate_docker_purl, generate_cargo_purl]
+def generate_fake_purls():
+    faker = PurlGenerator()
 
-purls = [random.choice(generators)() for _ in range(20000)]
+    # Mix of different types
+    generators = [faker.generate_npm_purl, faker.generate_pypi_purl, faker.generate_maven_purl, 
+                faker.generate_docker_purl, faker.generate_cargo_purl]
 
-# Save to file
-with open('purls.py', 'w') as f:
-    f.write("purls = [\n")
-    for purl in purls:
-        f.write(f"    '{purl}',\n")
-    f.write("]\n")
+    purls = [random.choice(generators)() for _ in range(20000)]
 
-print(f"Generated {len(purls)} purls")
-print("\nSamples:")
-for purl in purls[:100]:
-    print(purl)
+    # Save to file
+    with open('purl_parserproject/purls.py', 'w') as f:
+        f.write("purls = [\n")
+        for purl in purls:
+            f.write(f"    '{purl}',\n")
+        f.write("]\n")
+
+    print(f"Generated {len(purls)} purls")
+
+    return purls
+        
+if __name__ == "__main__":
+    purls = generate_fake_purls()
+    print("\nSamples:")
+    for purl in purls[:100]:
+        print(purl)

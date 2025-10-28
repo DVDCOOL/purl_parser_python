@@ -1,5 +1,3 @@
-from purl_parserproject.purls import purls
-from purl_parserproject.purl_parser import PurlParser
 from database.duckDB.functionsForDB import Database
 from database.DBConfigs import dbPath
 
@@ -18,3 +16,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    

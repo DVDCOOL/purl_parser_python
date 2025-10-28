@@ -2,16 +2,16 @@ from purl_parserproject.purls import purls
 from purl_parserproject.purl_parser import PurlParser
 from database.duckDB.functionsForDB import Database
 from database.DBConfigs import dbPath
+from purl_parserproject.fakePurls import generate_fake_purls
 
 
 def main():
     uidb = Database(dbPath)
-    uidb.dropTables()
-    uidb.createTables()
+    newpurls = generate_fake_purls()
     prozent = 0
-    total = len(purls)
+    total = len(newpurls)
     
-    for purl in purls:
+    for purl in newpurls:
         prozent += 1
         print(f"Processing {prozent}/{total} PURLs", end='\r')
         
