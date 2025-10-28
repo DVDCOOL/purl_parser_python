@@ -1,4 +1,4 @@
-from constants import *
+from .constants import *
 
 #Takes a purl as a string and outputs the components as a list 
 #scheme:title/namespace/name@version?qualifiers#subpath

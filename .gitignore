@@ -4,6 +4,7 @@ __pycache__/
 
 # Database files
 *.db
+*.wal
 
 # VS Code settings
 .vscode/

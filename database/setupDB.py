@@ -7,7 +7,6 @@ import TestPackages as tp
 def main():
     dbToSetup = db.Database(conf.dbPath)
     dbToSetup.createTables()
-    dbToSetup.insertPackage(tp.packages)
     dbToSetup.showAllTables()
     print("Database setup done.")
 
