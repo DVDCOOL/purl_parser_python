@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Service 1: Redis (the message queue)
+  redis:
+    image: redis:7-alpine  # Official Redis image
+    ports:
+      - "6379:6379"  # Make it accessible on your computer too
+    networks:
+      - app-network
+
+  inputer:
+    image: my-inputer
+    depends_on:
+      - redis  # Wait for Redis to start
+    volumes:
+      - ./shared/inputPURLS.txt:/app/shared/inputPURLS.txt  #
+    environment:
+      - REDIS_HOST=redis  # Tell it where Redis is
+      - PYTHONUNBUFFERED=1  # Ensure real-time logging
+      - INPUT_FILE=/app/shared/inputPURLS.txt  # Input file path
+    networks:
+      - app-network
+
+  # Service 2: Indexer (database writer)
+  indexer:
+    image: my-indexer
+    depends_on:
+      - redis  # Wait for Redis to start
+    volumes:
+      - ./shared/database:/app/shared/database # Share database
+    environment:
+      - REDIS_HOST=redis  # Tell it where Redis is
+      - PYTHONUNBUFFERED=1  # Ensure real-time logging
+      - DB_PATH=/app/shared/database/packages.db  # Path to the database
+      - TIMEOUT=60  # DB timeout in seconds
+    networks:
+      - app-network
+
+  # Service 3: Spider (data collector)
+  spider:
+    image: my-spider
+    depends_on:
+      - redis
+      - indexer  # Wait for indexer too
+      - inputer
+    environment:
+      - REDIS_HOST=redis
+      - PYTHONUNBUFFERED=1
+      - NUMBER_OF_LEVELS=10  # Depth of spidering
+      - HEADERS={"From":""}
+      - TIMEOUT=5  # Spider timeout in seconds
+    networks:
+      - app-network
+
+# Create a network for all services
+networks:
+  app-network:
+    driver: bridge

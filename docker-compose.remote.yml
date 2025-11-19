@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  inputer:
+    image: my-inputer
+    volumes:
+      - ./shared/inputPURLS.txt:/app/shared/inputPURLS.txt  #
+    build: .
+    env_file:
+      - .env  # ← Load from .env file
+    # OR explicitly override specific variables:
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - PYTHONUNBUFFERED=1  # Ensure real-time logging
+      - INPUT_FILE=/app/shared/inputPURLS.txt  # Input file path
+    stop_grace_period: 30s
+    restart: on-failure
+    networks:
+      - app-network
+  # Service 3: Spider (data collector)
+  spider:
+    image: my-spider
+    depends_on:
+      - inputer
+    build: .
+    env_file:
+      - .env  # ← Load from .env file
+    # OR explicitly override specific variables:
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - FROM_EMAIL=${FROM_EMAIL}
+      - NUMBER_OF_LEVELS=${NUMBER_OF_LEVELS:-5}
+      - TIMEOUT=${TIMEOUT:-60}
+      - LOCK_TTL_SECONDS=${LOCK_TTL_SECONDS:-600}
+    stop_grace_period: 30s
+    restart: on-failure
+    networks:
+      - app-network
+
+# Create a network for all services
+networks:
+  app-network:
+    driver: bridge
