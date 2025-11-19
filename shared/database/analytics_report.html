@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Dependency Analytics Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #0f0f1e;
+            color: #e0e0e0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: white;
+            font-size: 2.5em;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            color: #f0f0f0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #667eea;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            color: #00d4aa;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #667eea;
+        }
+        
+        .chart-container h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:hover { background: #2a2a3e; }
+        
+        .warning {
+            background: #ff4757;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Dependency Analytics Dashboard</h1>
+        <p>Comprehensive analysis of 0 packages and 0 dependency relationships</p>
+    </div>
+    
+    <div class="warning">
+        ⚠️ <strong>Large Graph Notice:</strong> With 0 nodes, traditional full-graph visualization is not possible. 
+        This dashboard provides statistical analysis. Use the neighborhood visualizations for specific packages.
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Packages</h3>
+            <div class="value">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Total Dependencies</h3>
+            <div class="value">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Unique Licenses</h3>
+            <div class="value">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Ecosystems</h3>
+            <div class="value">0</div>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <h2>📈 License Distribution (Top 20)</h2>
+        <div id="license-chart"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h2>🌳 Dependency Depth Distribution</h2>
+        <div id="depth-chart"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h2>📦 Ecosystem Distribution</h2>
+        <div id="ecosystem-chart"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h2>⭐ Top 50 Most Depended-Upon Packages</h2>
+        <p style="margin-bottom:10px; color:#a8a8ff;">These packages are critical to the ecosystem</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Package</th>
+                    <th>Type</th>
+                    <th>Dependents</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="chart-container">
+        <h2>🔗 Packages with Most Dependencies</h2>
+        <p style="margin-bottom:10px; color:#a8a8ff;">These packages have the most complex dependency trees</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Package</th>
+                    <th>Type</th>
+                    <th>Dependencies</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        // License distribution chart
+        const licenseData = {
+            x: [],
+            y: [],
+            type: 'bar',
+            marker: { color: '#00d4aa' }
+        };
+        
+        Plotly.newPlot('license-chart', [licenseData], {
+            plot_bgcolor: '#0f0f1e',
+            paper_bgcolor: '#1a1a2e',
+            font: {color: 'white'},
+            margin: {l: 50, r: 20, t: 20, b: 100},
+            xaxis: {tickangle: -45}
+        });
+        
+        // Depth distribution chart
+        const depthData = {
+            x: [],
+            y: [],
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {color: '#667eea', width: 3},
+            marker: {size: 8}
+        };
+        
+        Plotly.newPlot('depth-chart', [depthData], {
+            plot_bgcolor: '#0f0f1e',
+            paper_bgcolor: '#1a1a2e',
+            font: {color: 'white'},
+            margin: {l: 50, r: 20, t: 20, b: 50},
+            xaxis: {title: 'Dependency Depth Level'},
+            yaxis: {title: 'Number of Packages', type: 'log'}
+        });
+        
+        // Ecosystem distribution chart
+        const ecosystemData = {
+            labels: [],
+            values: [],
+            type: 'pie',
+            marker: {
+                colors: ['#00d4aa', '#4169e1', '#ff6b9d', '#c5a3ff', '#ffa500', '#ff4757']
+            }
+        };
+        
+        Plotly.newPlot('ecosystem-chart', [ecosystemData], {
+            plot_bgcolor: '#0f0f1e',
+            paper_bgcolor: '#1a1a2e',
+            font: {color: 'white'},
+            margin: {l: 50, r: 20, t: 20, b: 50}
+        });
+    </script>
+</body>
+</html>

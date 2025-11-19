@@ -19,8 +19,6 @@ services:
       --appendonly yes
     env_file:
       - .env  # ← Reads REDIS_PASSWORD from .env
-    volumes:
-      - redis-data:/data  # Persist Redis data
     networks:
       - app-network
     restart: unless-stopped
@@ -37,7 +35,9 @@ services:
         condition: service_healthy  # Wait for Redis to be healthy
     volumes:
       - ./shared/database:/app/shared/database # Share database
-    build: .
+    build: 
+      context: .
+      dockerfile: indexer/Dockerfile
     env_file:
       - .env  # ← Load from .env file
     
