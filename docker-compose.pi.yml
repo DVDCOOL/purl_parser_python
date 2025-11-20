@@ -35,18 +35,27 @@ services:
     ports:
       - "${API_PORT}:5000"
     volumes:
-      - ./shared/database:/app/shared/database # Share database
+      - ./shared/database:/app/shared/database
     env_file:
       - .env
     environment:
-      - PYTHONUNBUFFERED=1  # Ensure real-time logging
-      - DB_PATH=${DB_PATH}  # Path to the database
+      - PYTHONUNBUFFERED=1
+      - DB_PATH=${DB_PATH}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   indexer:
     image: my-indexer
     depends_on:
       redis:
         condition: service_healthy  # Wait for Redis to be healthy
+      api:
+        condition: service_started  # Wait for API to start
     volumes:
       - ./shared/database:/app/shared/database # Share database
     build: 
