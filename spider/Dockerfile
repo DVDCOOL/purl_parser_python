@@ -8,8 +8,6 @@ RUN pip install --no-cache-dir -r /app/spider/requirements.txt
 COPY shared/ /app/shared/
 COPY spider/ /app/spider/
 
-
-
 WORKDIR /app/spider
 
 ENV PYTHONPATH="/app/shared:${PYTHONPATH}"

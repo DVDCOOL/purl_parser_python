@@ -5,7 +5,9 @@ services:
     image: my-inputer
     volumes:
       - ./shared/inputPURLS.txt:/app/shared/inputPURLS.txt  #
-    build: .
+    build:
+      context: .
+      dockerfile: inputer/Dockerfile
     env_file:
       - .env  # ← Load from .env file
     # OR explicitly override specific variables:
@@ -23,7 +25,9 @@ services:
     image: my-spider
     depends_on:
       - inputer
-    build: .
+    build: 
+      context: .
+      dockerfile: spider/Dockerfile
     env_file:
       - .env  # ← Load from .env file
     # OR explicitly override specific variables:
@@ -34,6 +38,7 @@ services:
       - NUMBER_OF_LEVELS=${NUMBER_OF_LEVELS:-5}
       - TIMEOUT=${TIMEOUT:-60}
       - LOCK_TTL_SECONDS=${LOCK_TTL_SECONDS:-600}
+      - PYTHONUNBUFFERED=1  # Ensure real-time logging
     stop_grace_period: 30s
     restart: on-failure
     networks:
