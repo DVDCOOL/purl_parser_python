@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from database.functionsForDB import Database
+import os
 
 DB_PATH = os.getenv('DB_PATH', './shared/database/packages.db')
 
