@@ -1,7 +1,6 @@
 import sys
 import os
-from database.functionsForDB import Database
-from database.visualizeDB import DependencyAnalytics
+
 import sys
 import redis
 import json
@@ -10,7 +9,6 @@ import requests
 TIMEOUT = int(os.getenv('TIMEOUT', '60'))
 
 class DependencyIntegrator:
-    """Integrates DependentFinder with Database to store packages and dependencies"""
 
     def __init__(self, prints=False):
         self.prints = prints
@@ -83,9 +81,7 @@ class DependencyIntegrator:
                 else:
                     self.showAllPackages(all_packages.get('packages', []))
                 break
-    def close(self):
-        """Close database connection"""
-        self.db.close()
+
 
 # ========== MAIN EXECUTION SCRIPT ==========
 
@@ -94,10 +90,6 @@ def main():
     
     integrator = DependencyIntegrator()
     integrator.storeDependenciesFromFinder()
-    integrator.close()
-    analytics = DependencyAnalytics(DB_PATH)
-    analytics.generateHTMLReport()
-    analytics.close()
 
 if __name__ == "__main__":
 
