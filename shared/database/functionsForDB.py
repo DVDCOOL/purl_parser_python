@@ -279,65 +279,58 @@ class Database:
     def getAllPackages(self):
         """Retrieve all packages with aggregated information including licenses"""
         query = """
-        SELECT 
-            LIST(DISTINCT p.PackageID ORDER BY p.PackageID) AS PackageIDs,
+        SELECT
+            array_agg(DISTINCT p.PackageID)                                       AS PackageIDs,
             pu.PURL,
             t.Type,
             ns.Namespace,
             n.Name,
-            LIST(DISTINCT v.Version ORDER BY v.Version DESC)
-                FILTER (WHERE v.Version IS NOT NULL) AS Versions,
-            LIST(DISTINCT [qk.Key, qv.Value])
-                FILTER (WHERE qk.Key IS NOT NULL) AS Qualifiers,
-            LIST(DISTINCT sp.Subpath)
-                FILTER (WHERE sp.Subpath IS NOT NULL) AS Subpaths,
-            LIST(DISTINCT l.License)
-                FILTER (WHERE l.License IS NOT NULL) AS Licenses,
+            array_agg(DISTINCT v.Version)              FILTER (WHERE v.Version IS NOT NULL) AS Versions,
+            array_agg(DISTINCT (qk.Key || '=' || qv.Value)) FILTER (WHERE qk.Key IS NOT NULL) AS Qualifiers,
+            array_agg(DISTINCT sp.Subpath)             FILTER (WHERE sp.Subpath IS NOT NULL) AS Subpaths,
+            array_agg(DISTINCT l.License)              FILTER (WHERE l.License IS NOT NULL) AS Licenses,
             ru.RepositoryURL,
             hu.HomepageURL,
             d.Description,
 
-            -- **NEW FIELD: aggregated dependent packages**
-            dep.Dependencies
+            -- Dependencies as an array of structs (ROW = struct)
+            array_agg(DISTINCT ROW(
+                t2.Type,
+                ns2.Namespace,
+                n2.Name,
+                v2.Version,
+                l2.License
+            )) FILTER (WHERE dep.DependsOnPackageID IS NOT NULL) AS Dependencies
 
         FROM Packages p
-        LEFT JOIN Types t ON p.TypeID = t.TypeID
-        LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
-        LEFT JOIN Names n ON p.NameID = n.NameID
-        LEFT JOIN Versions v ON p.VersionID = v.VersionID
-        LEFT JOIN Qualifiers q ON p.QualifierID = q.QualifierID
-        LEFT JOIN QualifierKeys qk ON q.KeyID = qk.KeyID
+        LEFT JOIN Types t           ON p.TypeID = t.TypeID
+        LEFT JOIN Namespaces ns     ON p.NamespaceID = ns.NamespaceID
+        LEFT JOIN Names n           ON p.NameID = n.NameID
+        LEFT JOIN Versions v        ON p.VersionID = v.VersionID
+        LEFT JOIN Qualifiers q      ON p.QualifierID = q.QualifierID
+        LEFT JOIN QualifierKeys qk  ON q.KeyID = qk.KeyID
         LEFT JOIN QualifierValues qv ON q.ValueID = qv.ValueID
-        LEFT JOIN Subpaths sp ON p.SubpathID = sp.SubpathID
-        LEFT JOIN Licenses l ON p.LicenseID = l.LicenseID
-        LEFT JOIN PURLs pu ON p.PURLID = pu.PURLID
+        LEFT JOIN Subpaths sp       ON p.SubpathID = sp.SubpathID
+        LEFT JOIN Licenses l        ON p.LicenseID = l.LicenseID
+        LEFT JOIN PURLs pu          ON p.PURLID = pu.PURLID
         LEFT JOIN RepositoryURLs ru ON p.RepositoryURLID = ru.RepositoryURLID
-        LEFT JOIN HomepageURLs hu ON p.HomepageURLID = hu.HomepageURLID
-        LEFT JOIN Descriptions d ON p.DescriptionID = d.DescriptionID
+        LEFT JOIN HomepageURLs hu   ON p.HomepageURLID = hu.HomepageURLID
+        LEFT JOIN Descriptions d    ON p.DescriptionID = d.DescriptionID
 
-        -- ⭐ Add dependency list
-        LEFT JOIN LATERAL (
-            SELECT LIST(
-                    DISTINCT [
-                        t2.Type,
-                        n2.Name,
-                        l2.License
-                    ]
-                ) AS Dependencies
-            FROM Dependencies dp
-            JOIN Packages p2 ON dp.DependsOnPackageID = p2.PackageID
-            JOIN Types t2 ON p2.TypeID = t2.TypeID
-            JOIN Names n2 ON p2.NameID = n2.NameID
-            LEFT JOIN Licenses l2 ON p2.LicenseID = l2.LicenseID
-            WHERE dp.PackageID = p.PackageID
-        ) dep
+        -- join dependency rows (depends on this package)
+        LEFT JOIN Dependencies dep  ON dep.PackageID = p.PackageID
+        LEFT JOIN Packages p2       ON dep.DependsOnPackageID = p2.PackageID
+        LEFT JOIN Types t2          ON p2.TypeID = t2.TypeID
+        LEFT JOIN Namespaces ns2    ON p2.NamespaceID = ns2.NamespaceID
+        LEFT JOIN Names n2          ON p2.NameID = n2.NameID
+        LEFT JOIN Versions v2       ON p2.VersionID = v2.VersionID
+        LEFT JOIN Licenses l2       ON p2.LicenseID = l2.LicenseID
 
-        GROUP BY 
+        GROUP BY
             t.Type, ns.Namespace, n.Name,
             pu.PURL, ru.RepositoryURL, hu.HomepageURL, d.Description
 
         ORDER BY MIN(p.PackageID);
-
         """
         self.con.query(query).show()
         return self.con.execute(query).fetchall()
