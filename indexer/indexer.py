@@ -7,6 +7,7 @@ import json
 import requests
 
 TIMEOUT = int(os.getenv('TIMEOUT', '60'))
+API_HOST = os.getenv('API_HOST', 'localhost')
 
 class DependencyIntegrator:
 
@@ -20,12 +21,12 @@ class DependencyIntegrator:
 
     def addAllPackagesToCache(self):
         """Preload all packages from DB into cache to minimize DB queries"""
-        all_packages = requests.get("http://localhost:5000/get_packages").json()
+        all_packages = requests.get(f"http://{API_HOST}:5000/get_packages")
         if all_packages.status_code != 200:
             print(f"Error fetching packages from database: {all_packages.status_code}")
             return
         else:
-            packages_list = all_packages.get('packages', [])
+            packages_list = all_packages.json().get('packages', [])
             self.showAllPackages(packages_list)
             for pkg in packages_list:
                 self.queue.sadd('processed_packages', f"{pkg['ecosystem']}/{pkg['name']}")
@@ -59,14 +60,14 @@ class DependencyIntegrator:
             if message:
                 data = json.loads(message[1])
                 if data.get('type') == 'package':
-                    post_request = requests.post("http://localhost:5000/insert_package/", json=data)
+                    post_request = requests.post(f"http://{API_HOST}:5000/insert_package/", json=data)
                     if post_request.status_code == 201:
                         print(post_request.json()['message'])
                         self.queue.sadd('processed_packages', f"{data['ecosystem']}/{data['name']}")
                     else:
                         print(f"Error {post_request.status_code}: {post_request.json()['message']}")
                 elif data.get('type') == 'relation':
-                    post_request = requests.post("http://localhost:5000/insert_dependency/", json=data)
+                    post_request = requests.post(f"http://{API_HOST}:5000/insert_dependency/", json=data)
                     if post_request.status_code == 201:
                         if self.prints:
                             print(post_request.json()['message'])

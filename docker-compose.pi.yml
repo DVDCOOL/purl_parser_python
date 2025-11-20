@@ -66,6 +66,7 @@ services:
     
     environment:
       - REDIS_HOST=redis  # Tell it where Redis is
+      - API_HOST=api  # Tell it where API is
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PYTHONUNBUFFERED=1  # Ensure real-time logging
       - DB_PATH=${DB_PATH}  # Path to the database
