@@ -5,6 +5,8 @@ __pycache__/
 # Database files
 *.db
 *.wal
+
+#Analytic page
 *.html
 
 # VS Code settings
