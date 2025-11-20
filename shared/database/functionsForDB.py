@@ -35,9 +35,9 @@ class Database:
     
     # ========== TYPE, NAMESPACE, NAME, SUBPATH, LICENSE ==========
     
-    def getTypeIndex(self, type):
-        """Get or create Type ID"""
-        return self._getOrInsertId("Types", "Type", type, "TypeID")
+    def getEcosystemIndex(self, ecosystem):
+        """Get or create Ecosystem ID"""
+        return self._getOrInsertId("Ecosystems", "Ecosystem", ecosystem, "EcosystemID")
     
     def getNamespaceIndex(self, namespace):
         """Get or create Namespace ID"""
@@ -158,14 +158,14 @@ class Database:
     
     # ========== PACKAGES ==========
     
-    def insertPackage(self, type, namespace, name, version, qualifiers, subpath):
+    def insertPackage(self, ecosystem, namespace, name, version, qualifiers, subpath):
         """Insert package WITHOUT license (legacy method for compatibility)"""
-        return self.insertPackageWithLicense(type, namespace, name, version, qualifiers, subpath, None)
+        return self.insertPackageWithLicense(ecosystem, namespace, name, version, qualifiers, subpath, None)
 
-    def insertPackageWithLicense(self, type, namespace, name, version, qualifiers, subpath, purl=None, repository_url=None, homepage_url=None, license=None, description=None, normalized_license=None):
+    def insertPackageWithLicense(self, ecosystem, namespace, name, version, qualifiers, subpath, purl=None, repository_url=None, homepage_url=None, license=None, description=None, normalized_license=None):
         """Insert package WITH license and return (success, list of PackageIDs)"""
-        if not name or not type:
-            print("Package name and type is required")
+        if not name or not ecosystem:
+            print("Package name and ecosystem is required")
             return False, []
         
         # Get license index
@@ -178,12 +178,12 @@ class Database:
         else:
             versionCorrect, newVersion = self.isVersionSyntaxCorrect(version)
             if not versionCorrect:
-                print(f"Invalid version syntax: {version} for {type}/{name}")
+                print(f"Invalid version syntax: {version} for {ecosystem}/{name}")
                 versionIndex = None
             versionIndex = self.getVersionIndex(newVersion, *self.encodeVersion(newVersion))
         
         # Get indexes for core fields
-        typeIndex = self.getTypeIndex(type)
+        ecosystemIndex = self.getEcosystemIndex(ecosystem)
         namespaceIndex = self.getNamespaceIndex(namespace) if namespace else None
         nameIndex = self.getNameIndex(name)
         subpathIndex = self.getSubpathIndex(subpath) if subpath else None
@@ -205,18 +205,18 @@ class Database:
             # Check if package already exists
             exists = self.con.execute("""
                 SELECT PackageID, LicenseID FROM Packages 
-                WHERE TypeID=? AND NamespaceID IS NOT DISTINCT FROM ?
+                WHERE EcosystemID=? AND NamespaceID IS NOT DISTINCT FROM ?
                 AND NameID=? AND VersionID IS NOT DISTINCT FROM ?
                 AND QualifierID IS NOT DISTINCT FROM ? AND SubpathID IS NOT DISTINCT FROM ?
-            """, (typeIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex)).fetchone()
+            """, (ecosystemIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex)).fetchone()
             
             if not exists:
                 # Package doesn't exist, insert it
                 result = self.con.execute("""
-                    INSERT INTO Packages (TypeID, NamespaceID, NameID, VersionID, QualifierID, SubpathID, LicenseID, NormalizedLicenseID, PURLID, RepositoryURLID, HomepageURLID, DescriptionID) 
+                    INSERT INTO Packages (EcosystemID, NamespaceID, NameID, VersionID, QualifierID, SubpathID, LicenseID, NormalizedLicenseID, PURLID, RepositoryURLID, HomepageURLID, DescriptionID) 
                     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     RETURNING PackageID
-                """, (typeIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex, licenseIndex, normalizedLicenseIndex, purlIndex, repositoryURLIndex, homepageURLIndex, descriptionIndex)).fetchone()
+                """, (ecosystemIndex, namespaceIndex, nameIndex, versionIndex, qualifierIndex, subpathIndex, licenseIndex, normalizedLicenseIndex, purlIndex, repositoryURLIndex, homepageURLIndex, descriptionIndex)).fetchone()
 
                 if result:
                     packageIDs.append(result[0])
@@ -245,19 +245,19 @@ class Database:
         else:
             # Return False but still return packageIDs for existing packages
             return False, packageIDs
-    def getPackageID(self, type, name, version=None, namespace=None):
-        """Helper to get PackageID by type, name, and optional version/namespace"""
-        typeIndex = self.con.execute("SELECT TypeID FROM Types WHERE Type=?", (type,)).fetchone()
+    def getPackageID(self, ecosystem, name, version=None, namespace=None):
+        """Helper to get PackageID by ecosystem, name, and optional version/namespace"""
+        ecosystemIndex = self.con.execute("SELECT EcosystemID FROM Ecosystems WHERE Ecosystem=?", (ecosystem,)).fetchone()
         nameIndex = self.con.execute("SELECT NameID FROM Names WHERE Name=?", (name,)).fetchone()
         
-        if not typeIndex or not nameIndex:
+        if not ecosystemIndex or not nameIndex:
             return None
         
         query = """
             SELECT PackageID FROM Packages 
-            WHERE TypeID=? AND NameID=?
+            WHERE EcosystemID=? AND NameID=?
         """
-        params = [typeIndex[0], nameIndex[0]]
+        params = [ecosystemIndex[0], nameIndex[0]]
         
         if namespace:
             namespaceIndex = self.con.execute("SELECT NamespaceID FROM Namespaces WHERE Namespace=?", (namespace,)).fetchone()
@@ -282,11 +282,11 @@ class Database:
         SELECT
             array_agg(DISTINCT p.PackageID)                                       AS PackageIDs,
             pu.PURL,
-            t.Type,
+            e.Ecosystem,
             ns.Namespace,
             n.Name,
             array_agg(DISTINCT v.Version)              FILTER (WHERE v.Version IS NOT NULL) AS Versions,
-            array_agg(DISTINCT (qk.Key || '=' || qv.Value)) FILTER (WHERE qk.Key IS NOT NULL) AS Qualifiers,
+            array_agg(DISTINCT ROW(qk.Key, qv.Value)) FILTER (WHERE qk.Key IS NOT NULL) AS Qualifiers,
             array_agg(DISTINCT sp.Subpath)             FILTER (WHERE sp.Subpath IS NOT NULL) AS Subpaths,
             array_agg(DISTINCT l.License)              FILTER (WHERE l.License IS NOT NULL) AS Licenses,
             ru.RepositoryURL,
@@ -295,7 +295,7 @@ class Database:
 
             -- Dependencies as an array of structs (ROW = struct)
             array_agg(DISTINCT ROW(
-                t2.Type,
+                e2.Ecosystem,
                 ns2.Namespace,
                 n2.Name,
                 v2.Version,
@@ -303,7 +303,7 @@ class Database:
             )) FILTER (WHERE dep.DependsOnPackageID IS NOT NULL) AS Dependencies
 
         FROM Packages p
-        LEFT JOIN Types t           ON p.TypeID = t.TypeID
+        LEFT JOIN Ecosystems e           ON p.EcosystemID = e.EcosystemID
         LEFT JOIN Namespaces ns     ON p.NamespaceID = ns.NamespaceID
         LEFT JOIN Names n           ON p.NameID = n.NameID
         LEFT JOIN Versions v        ON p.VersionID = v.VersionID
@@ -320,19 +320,18 @@ class Database:
         -- join dependency rows (depends on this package)
         LEFT JOIN Dependencies dep  ON dep.PackageID = p.PackageID
         LEFT JOIN Packages p2       ON dep.DependsOnPackageID = p2.PackageID
-        LEFT JOIN Types t2          ON p2.TypeID = t2.TypeID
+        LEFT JOIN Ecosystems e2          ON p2.EcosystemID = e2.EcosystemID
         LEFT JOIN Namespaces ns2    ON p2.NamespaceID = ns2.NamespaceID
         LEFT JOIN Names n2          ON p2.NameID = n2.NameID
         LEFT JOIN Versions v2       ON p2.VersionID = v2.VersionID
         LEFT JOIN Licenses l2       ON p2.LicenseID = l2.LicenseID
 
         GROUP BY
-            t.Type, ns.Namespace, n.Name,
+            e.Ecosystem, ns.Namespace, n.Name,
             pu.PURL, ru.RepositoryURL, hu.HomepageURL, d.Description
 
         ORDER BY MIN(p.PackageID);
         """
-        self.con.query(query).show()
         return self.con.execute(query).fetchall()
     # ========== DEPENDENCIES ==========
     
@@ -362,7 +361,7 @@ class Database:
         SELECT 
             d.DependsOnPackageID,
             pu.PURLs,
-            t.Type,
+            e.Ecosystem,
             ns.Namespace,
             n.Name,
             v.Version,
@@ -370,7 +369,7 @@ class Database:
             de.Descriptions
         FROM Dependencies d
         JOIN Packages p ON d.DependsOnPackageID = p.PackageID
-        JOIN Types t ON p.TypeID = t.TypeID
+        JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
         JOIN Names n ON p.NameID = n.NameID
         LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
         LEFT JOIN Versions v ON p.VersionID = v.VersionID
@@ -387,7 +386,7 @@ class Database:
         SELECT 
             d.PackageID,
             pu.PURLs,
-            t.Type,
+            e.Ecosystem,
             ns.Namespace,
             n.Name,
             v.Version,
@@ -395,7 +394,7 @@ class Database:
             de.Descriptions
         FROM Dependencies d
         JOIN Packages p ON d.PackageID = p.PackageID
-        JOIN Types t ON p.TypeID = t.TypeID
+        JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
         JOIN Names n ON p.NameID = n.NameID
         LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
         LEFT JOIN Versions v ON p.VersionID = v.VersionID
@@ -428,13 +427,13 @@ class Database:
         SELECT 
             p.PackageID,
             pu.PURLs,
-            t.Type,
+            e.Ecosystem,
             ns.Namespace,
             n.Name,
             v.Version,
             de.Descriptions
         FROM Packages p
-        JOIN Types t ON p.TypeID = t.TypeID
+        JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
         JOIN Names n ON p.NameID = n.NameID
         LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
         LEFT JOIN Versions v ON p.VersionID = v.VersionID
@@ -442,7 +441,7 @@ class Database:
         LEFT JOIN Descriptions de ON p.DescriptionID = de.DescriptionID
         JOIN Licenses l ON p.LicenseID = l.LicenseID
         WHERE l.License = ?
-        ORDER BY t.Type, n.Name
+        ORDER BY t.Ecosystem, n.Name
         """
         return self.con.execute(query, (license,)).fetchall()
     
@@ -454,7 +453,7 @@ class Database:
             SELECT 
                 p.PackageID,
                 pu.PURLs,
-                t.Type,
+                e.Ecosystem,
                 n.Name,
                 v.Version,
                 l.License,
@@ -463,7 +462,7 @@ class Database:
                 CAST(n.Name AS VARCHAR) as Path,
                 CAST(NULL AS INTEGER) as ParentPackageID  -- Track immediate parent
             FROM Packages p
-            JOIN Types t ON p.TypeID = t.TypeID
+            JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
             JOIN Names n ON p.NameID = n.NameID
             LEFT JOIN Versions v ON p.VersionID = v.VersionID
             LEFT JOIN Licenses l ON p.LicenseID = l.LicenseID
@@ -477,7 +476,7 @@ class Database:
             SELECT 
                 p.PackageID,
                 pu.PURLs,
-                t.Type,
+                e.Ecosystem,
                 n.Name,
                 v.Version,
                 l.License,
@@ -488,7 +487,7 @@ class Database:
             FROM dep_tree dt
             JOIN Dependencies d ON dt.PackageID = d.DependsOnPackageID
             JOIN Packages p ON d.PackageID = p.PackageID
-            JOIN Types t ON p.TypeID = t.TypeID
+            JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
             JOIN Names n ON p.NameID = n.NameID
             LEFT JOIN Versions v ON p.VersionID = v.VersionID
             LEFT JOIN Licenses l ON p.LicenseID = l.LicenseID
@@ -498,7 +497,7 @@ class Database:
         )
         SELECT 
             PackageID,
-            Type,
+            Ecosystem,
             Name,
             Version,
             License,

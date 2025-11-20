@@ -177,7 +177,7 @@ class DependentFinder:
 
     def findFirstPackage(self, parsedPurl):
         response = requests.get(
-            f"https://packages.ecosyste.ms/api/v1/packages/lookup?ecosystem={parsedPurl.type}&name={parsedPurl.name}",
+            f"https://packages.ecosyste.ms/api/v1/packages/lookup?ecosystem={parsedPurl.ecosystem}&name={parsedPurl.name}",
             headers=HEADERS
         )
 
@@ -291,13 +291,16 @@ class DependentFinder:
                 self.queue.rpush('work_queue', json.dumps({
                     'type': 'package',
                     'ecosystem': ecosystem,
+                    'namespace': None,
                     'name': package_name,
+                    'version': version,
+                    'qualifiers': None,
+                    'subpath': None,
                     'license': license,
                     'purl': purl,
                     'repository_url': repoURL,
                     'homepage': homepageURL,
                     'description': description,
-                    'version': version,
                     'normalized_license': normalized_license
                 }))
 

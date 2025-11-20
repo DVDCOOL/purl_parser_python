@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS Subpaths;
 DROP TABLE IF EXISTS Versions;
 DROP TABLE IF EXISTS Names;
 DROP TABLE IF EXISTS Namespaces;
-DROP TABLE IF EXISTS Types;
+DROP TABLE IF EXISTS Ecosystems;
 DROP TABLE IF EXISTS PURLs;
 DROP TABLE IF EXISTS Licenses;
 DROP TABLE IF EXISTS NormalizedLicenses;
@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS RepositoryURLs;
 DROP TABLE IF EXISTS HomepageURLs;
 DROP TABLE IF EXISTS Descriptions;
 -- Drop sequences
-DROP SEQUENCE IF EXISTS seq_types;
+DROP SEQUENCE IF EXISTS seq_ecosystems;
 DROP SEQUENCE IF EXISTS seq_namespaces;
 DROP SEQUENCE IF EXISTS seq_names;
 DROP SEQUENCE IF EXISTS seq_versions;
@@ -34,7 +34,7 @@ DROP SEQUENCE IF EXISTS seq_descriptions;
 DROP SEQUENCE IF EXISTS seq_normalized_licenses;
 
 -- Create sequences FIRST
-CREATE SEQUENCE seq_types START 1;
+CREATE SEQUENCE seq_ecosystems START 1;
 CREATE SEQUENCE seq_namespaces START 1;
 CREATE SEQUENCE seq_names START 1;
 CREATE SEQUENCE seq_versions START 1;
@@ -52,9 +52,9 @@ CREATE SEQUENCE seq_descriptions START 1;
 CREATE SEQUENCE seq_normalized_licenses START 1;
 
 -- Now create tables with DEFAULT nextval()
-CREATE TABLE Types (
-    TypeID INTEGER PRIMARY KEY DEFAULT nextval('seq_types'), 
-    Type VARCHAR NOT NULL UNIQUE
+CREATE TABLE Ecosystems (
+    EcosystemID INTEGER PRIMARY KEY DEFAULT nextval('seq_ecosystems'), 
+    Ecosystem VARCHAR NOT NULL UNIQUE
 );
 
 CREATE TABLE Namespaces (
@@ -137,7 +137,7 @@ CREATE TABLE Descriptions (
 
 CREATE TABLE Packages (
     PackageID INTEGER PRIMARY KEY DEFAULT nextval('seq_packages'),
-    TypeID INTEGER NOT NULL,
+    EcosystemID INTEGER NOT NULL,
     NamespaceID INTEGER,
     NameID INTEGER NOT NULL,
     VersionID INTEGER,
@@ -151,7 +151,7 @@ CREATE TABLE Packages (
     DescriptionID INTEGER,
     FOREIGN KEY (LicenseID) REFERENCES Licenses(LicenseID),
     FOREIGN KEY (NormalizedLicenseID) REFERENCES NormalizedLicenses(NormalizedLicenseID),
-    FOREIGN KEY (TypeID) REFERENCES Types(TypeID),
+    FOREIGN KEY (EcosystemID) REFERENCES Ecosystems(EcosystemID),
     FOREIGN KEY (NamespaceID) REFERENCES Namespaces(NamespaceID),
     FOREIGN KEY (NameID) REFERENCES Names(NameID), 
     FOREIGN KEY (VersionID) REFERENCES Versions(VersionID),
@@ -161,7 +161,7 @@ CREATE TABLE Packages (
     FOREIGN KEY (RepositoryURLID) REFERENCES RepositoryURLs(RepositoryURLID),
     FOREIGN KEY (HomepageURLID) REFERENCES HomepageURLs(HomepageURLID),
     FOREIGN KEY (DescriptionID) REFERENCES Descriptions(DescriptionID),
-    UNIQUE(TypeID, NamespaceID, NameID, VersionID, QualifierID, SubpathID)
+    UNIQUE(EcosystemID, NamespaceID, NameID, VersionID, QualifierID, SubpathID)
 );
 
 CREATE TABLE Dependencies (
@@ -175,7 +175,7 @@ CREATE TABLE Dependencies (
 
 
 -- Create indexes for better query performance
-CREATE INDEX idx_packages_type ON Packages(TypeID);
+CREATE INDEX idx_packages_ecosystem ON Packages(EcosystemID);
 CREATE INDEX idx_packages_namespace ON Packages(NamespaceID);
 CREATE INDEX idx_packages_name ON Packages(NameID);
 CREATE INDEX idx_packages_version ON Packages(VersionID);
@@ -193,7 +193,7 @@ CREATE INDEX idx_packages_description ON Packages(DescriptionID);
 SHOW TABLES;
 
 -- Show row counts
-SELECT 'Types' as table_name, COUNT(*) as row_count FROM Types
+SELECT 'Ecosystems' as table_name, COUNT(*) as row_count FROM Ecosystems
 UNION ALL
 SELECT 'Namespaces', COUNT(*) FROM Namespaces
 UNION ALL

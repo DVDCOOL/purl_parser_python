@@ -5,15 +5,14 @@ from database.visualizeDB import DependencyAnalytics
 import sys
 import redis
 import json
+import requests
 
-DB_PATH = os.getenv('DB_PATH', './shared/database/packages.db')
 TIMEOUT = int(os.getenv('TIMEOUT', '60'))
 
 class DependencyIntegrator:
     """Integrates DependentFinder with Database to store packages and dependencies"""
-    
-    def __init__(self, db_path, prints=False):
-        self.db = Database(db_path)
+
+    def __init__(self, prints=False):
         self.prints = prints
         redis_host = os.getenv('REDIS_HOST', 'localhost')  # Get from environment
         self.queue = redis.Redis(host=redis_host, port=6379, db=0, password=os.getenv('REDIS_PASSWORD', None))
@@ -23,15 +22,38 @@ class DependencyIntegrator:
 
     def addAllPackagesToCache(self):
         """Preload all packages from DB into cache to minimize DB queries"""
-        
-        
-        all_packages = self.db.getAllPackages()
-        for pkg in all_packages:
-            self.queue.sadd('processed_packages', f"{pkg[2]}/{pkg[4]}")
+        all_packages = requests.get("http://localhost:5000/get_packages").json()
+        if all_packages.status_code != 200:
+            print(f"Error fetching packages from database: {all_packages.status_code}")
+            return
+        else:
+            packages_list = all_packages.get('packages', [])
+            self.showAllPackages(packages_list)
+            for pkg in packages_list:
+                self.queue.sadd('processed_packages', f"{pkg['ecosystem']}/{pkg['name']}")
 
-        print(f"Loaded {len(all_packages)} packages into cache.")
+            print(f"Loaded {len(packages_list)} packages into cache.")
         self.queue.sadd('processed_packages', 'true')
+        
+    def showAllPackages(self, packages_list):
+        # Print header
+        print("\n" + "="*150)
+        print(f"{'#':<5} {'Ecosystem':<15} {'Name':<30} {'Versions':<10} {'Licenses':<10} {'Dependencies':<15} {'PURL':<50}")
+        print("="*150)
 
+        # Print each package in one line
+        for idx, pkg in enumerate(packages_list, 1):
+            ecosystem = (pkg.get('ecosystem') or 'N/A')[:14]
+            name = (pkg.get('name') or 'N/A')[:29]
+            num_versions = str(len(pkg.get('versions', [])))
+            num_licenses = str(pkg.get('number_of_licenses', 0))
+            num_deps = str(pkg.get('number_of_dependents', 0))
+            purl = (pkg.get('purl') or 'N/A')[:49]
+            
+            print(f"{idx:<5} {ecosystem:<15} {name:<30} {num_versions:<10} {num_licenses:<10} {num_deps:<15} {purl:<50}")
+
+        print("="*150)
+        print(f"Total: {len(packages_list)} packages\n")
     def storeDependenciesFromFinder(self):
 
         while True:
@@ -39,77 +61,25 @@ class DependencyIntegrator:
             if message:
                 data = json.loads(message[1])
                 if data.get('type') == 'package':
-                    ecosystem = data['ecosystem']
-                    name = data['name']
-                    license = data['license']
-                    description = data['description']
-                    purl = data['purl']
-                    repository_url = data['repository_url']
-                    homepage_url = data['homepage']
-                    version = data['version']
-                    normalized_license = data['normalized_license']
-                    try:
-                        success, packageIDs = self.db.insertPackageWithLicense(
-                            type=ecosystem,
-                            namespace=None,
-                            name=name,
-                            version=version,
-                            qualifiers=None,
-                            subpath=None,
-                            license=license,
-                            description=description,
-                            purl=purl,
-                            repository_url=repository_url,
-                            homepage_url=homepage_url,
-                            normalized_license=normalized_license
-                        )
-                        
-                        if success and packageIDs:
-                            print(f"Inserted package: {ecosystem}/{name} with ID {packageIDs[0]}")
-                            self.queue.sadd('processed_packages', f"{ecosystem}/{name}")
-                            
-                        elif packageIDs:
-                            if self.prints:
-                                print(f"Package already exists: {ecosystem}/{name} with ID {packageIDs[0]}")
-                            self.queue.sadd('processed_packages', f"{ecosystem}/{name}")
-                        else:
-                            if self.prints:
-                                print(f"Skipped package: {ecosystem}/{name}")
-                            
-                    except Exception as e:
-                        print(f"Error inserting package {ecosystem}/{name}: {str(e)}")
+                    post_request = requests.post("http://localhost:5000/insert_package/", json=data)
+                    if post_request.status_code == 201:
+                        print(post_request.json()['message'])
+                        self.queue.sadd('processed_packages', f"{data['ecosystem']}/{data['name']}")
+                    else:
+                        print(f"Error {post_request.status_code}: {post_request.json()['message']}")
                 elif data.get('type') == 'relation':
-                    parent_info = data['parent']
-                    child_info = data['child']
-                    parent_ecosystem = parent_info['ecosystem']
-                    parent_name = parent_info['name']
-                    child_ecosystem = child_info['ecosystem']
-                    child_name = child_info['name']
-
-                    try:
-                        parent_id = self.db.getPackageID(parent_ecosystem, parent_name)
-                        child_id = self.db.getPackageID(child_ecosystem, child_name)
-
-                        if parent_id and child_id:
-                            success = self.db.insertDependency(
-                                packageID=child_id,
-                                dependsOnPackageID=parent_id,
-                            )
-                            
-                            if success and self.prints:
-                                print(f"Inserted dependency: {child_name} depends on {parent_name}")
-                            else:
-                                if self.prints:
-                                    print(f"Dependency already exists: {child_name} depends on {parent_name}")
-                        else:
-                            if self.prints:
-                                print(f"Missing PackageID for dependency: {child_name} -> {parent_name}")
-                            
-                    except Exception as e:
-                        print(f"Error inserting dependency {child_name} -> {parent_name}: {str(e)}")
+                    post_request = requests.post("http://localhost:5000/insert_dependency/", json=data)
+                    if post_request.status_code == 201:
+                        if self.prints:
+                            print(post_request.json()['message'])
+                    else:
+                        print(f"Error {post_request.status_code}: {post_request.json()['message']}")
             else:
                 print("No more messages in queue. Exiting.")
-                x = self.db.getAllPackages()
+                all_packages = requests.get("http://localhost:5000/get_packages").json()
+                if all_packages.status_code != 200:
+                    print(f"Error fetching packages from database: {all_packages.status_code}")
+                    return
                 break
     def close(self):
         """Close database connection"""
@@ -119,10 +89,8 @@ class DependencyIntegrator:
 
 def main():
     # Configuration
-    if not os.path.exists(DB_PATH):
-        print(f"Database file not found at {DB_PATH}")
-        return
-    integrator = DependencyIntegrator(DB_PATH)
+    
+    integrator = DependencyIntegrator()
     integrator.storeDependenciesFromFinder()
     integrator.close()
     analytics = DependencyAnalytics(DB_PATH)
