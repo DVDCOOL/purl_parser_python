@@ -80,6 +80,8 @@ class DependencyIntegrator:
                 if all_packages.status_code != 200:
                     print(f"Error fetching packages from database: {all_packages.status_code}")
                     return
+                else:
+                    self.showAllPackages(all_packages.get('packages', []))
                 break
     def close(self):
         """Close database connection"""

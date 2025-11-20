@@ -28,6 +28,20 @@ services:
       timeout: 3s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "${API_PORT}:5000"
+    volumes:
+      - ./shared/database:/app/shared/database # Share database
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1  # Ensure real-time logging
+      - DB_PATH=${DB_PATH}  # Path to the database
+
   indexer:
     image: my-indexer
     depends_on:
