@@ -6,46 +6,65 @@ DB_PATH = os.getenv('DB_PATH', './shared/database/packages.db')
 
 app = Flask(__name__)
 
-@app.route('/get_packages', methods=['GET'])
-def get_packages():
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({'message': 'PURL Parser API is running'}), 200
+
+@app.route('/get_number_of_packages', methods=['GET'])
+def get_number_of_packages():
     if not os.path.exists(DB_PATH):
         message = f"Database file not found at {DB_PATH}"
         return jsonify({'message': message}), 503
     db = Database(DB_PATH)
-    packages = db.getAllPackages()
+    count = len(db.getAllPackages())
+    db.close()
+    return jsonify({'number_of_packages': count}), 200
+
+@app.route('/get_packages', methods=['GET'])
+def get_packages():
+    #Get optional query parameters for pagination
+    page = request.args.get('page', default=1, type=int)
+    per_page = request.args.get('per_page', default=100, type=int)
+    per_page = min(per_page, 100)  # Limit maximum per_page to 100
+
+    if not os.path.exists(DB_PATH):
+        message = f"Database file not found at {DB_PATH}"
+        return jsonify({'message': message}), 503
+    db = Database(DB_PATH)
+    packages = db.getAllPackages()[per_page*(page-1):per_page*page]
     output = []
-    
-    for package in packages:
-        purl = package[1]
-        ecosystem = package[2]
-        namespace = package[3]
-        name = package[4]
-        version = [{'version': i} for i in (package[5] or [])]
-        qualifiers = [{'key': q[0], 'value': q[1]} for q in (package[6] or [])]
-        subpath = [{'subpath': i} for i in (package[7] or [])]
-        license = [{'license': i} for i in (package[8] or [])]
-        number_of_licenses = len(license)
-        repository_url = package[9]
-        homepage_url = package[10]
-        description = package[11]
-        dependents = [{'ecosystem': dep[0], 'name': dep[1], 'license': dep[2]} for dep in (package[12] or [])]
-        number_of_dependents = len(dependents)
-        output.append({
-            'purl': purl,
-            'ecosystem': ecosystem,
-            'namespace': namespace,
-            'name': name,
-            'versions': version,
-            'qualifiers': qualifiers,
-            'subpaths': subpath,
-            'licenses': license,
-            'number_of_licenses': number_of_licenses,
-            'repository_url': repository_url,
-            'homepage_url': homepage_url,
-            'description': description,
-            'dependents': dependents,
-            'number_of_dependents': number_of_dependents
-        })
+    if len (packages) > 0:
+        for package in packages:
+            purl = package[1]
+            ecosystem = package[2]
+            namespace = package[3]
+            name = package[4]
+            version = [{'version': i} for i in (package[5] or [])]
+            qualifiers = [{'key': q[0], 'value': q[1]} for q in (package[6] or [])]
+            subpath = [{'subpath': i} for i in (package[7] or [])]
+            license = [{'license': i} for i in (package[8] or [])]
+            number_of_licenses = len(license)
+            repository_url = package[9]
+            homepage_url = package[10]
+            description = package[11]
+            dependents = [{'ecosystem': dep[0], 'name': dep[1], 'license': dep[2]} for dep in (package[12] or [])]
+            number_of_dependents = len(dependents)
+            output.append({
+                'purl': purl,
+                'ecosystem': ecosystem,
+                'namespace': namespace,
+                'name': name,
+                'versions': version,
+                'qualifiers': qualifiers,
+                'subpaths': subpath,
+                'licenses': license,
+                'number_of_licenses': number_of_licenses,
+                'repository_url': repository_url,
+                'homepage_url': homepage_url,
+                'description': description,
+                'dependents': dependents,
+                'number_of_dependents': number_of_dependents
+            })
     db.close()
     return jsonify({'packages': output}), 200
 

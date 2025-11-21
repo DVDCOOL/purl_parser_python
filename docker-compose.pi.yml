@@ -56,8 +56,6 @@ services:
         condition: service_healthy  # Wait for Redis to be healthy
       api:
         condition: service_started  # Wait for API to start
-    volumes:
-      - ./shared/database:/app/shared/database # Share database
     build: 
       context: .
       dockerfile: indexer/Dockerfile
