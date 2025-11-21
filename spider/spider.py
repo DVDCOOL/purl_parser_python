@@ -249,6 +249,10 @@ class DependentFinder:
             return
             
         package_name = package.get("name")
+        if len(package_name.split('/')) == 2:
+            namespace, package_name = package_name.split('/')
+        else:
+            namespace = None
         license = package.get("licenses")
         ecosystem = package.get("ecosystem")
         purl = package.get("purl")
@@ -291,7 +295,7 @@ class DependentFinder:
                 self.queue.lpush('work_queue', json.dumps({
                     'type': 'package',
                     'ecosystem': ecosystem,
-                    'namespace': None,
+                    'namespace': namespace,
                     'name': package_name,
                     'version': version,
                     'qualifiers': None,
