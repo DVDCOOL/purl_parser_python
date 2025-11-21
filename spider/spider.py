@@ -177,7 +177,7 @@ class DependentFinder:
 
     def findFirstPackage(self, parsedPurl):
         response = requests.get(
-            f"https://packages.ecosyste.ms/api/v1/packages/lookup?ecosystem={parsedPurl.ecosystem}&name={parsedPurl.name}",
+            f"https://packages.ecosyste.ms/api/v1/packages/lookup?ecosystem={parsedPurl.type}&name={parsedPurl.name}",
             headers=HEADERS
         )
 
@@ -288,7 +288,7 @@ class DependentFinder:
                 print(f"🔒 Acquired lock: {package_key}")
             
             if not self.queue.sismember('processed_packages', package_key):
-                self.queue.rpush('work_queue', json.dumps({
+                self.queue.lpush('work_queue', json.dumps({
                     'type': 'package',
                     'ecosystem': ecosystem,
                     'namespace': None,
@@ -307,7 +307,7 @@ class DependentFinder:
             self.packages.append(package_key)
             
             if parent_info:
-                self.queue.rpush('work_queue', json.dumps({
+                self.queue.lpush('work_queue', json.dumps({
                     'type': 'relation',
                     'child': {
                         'ecosystem': ecosystem,
