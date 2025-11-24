@@ -6,15 +6,16 @@ import requests
 
 TIMEOUT = int(os.getenv('TIMEOUT', '60'))
 API_HOST = os.getenv('API_HOST', 'localhost')
+APP_PORT = os.getenv('APi_PORT', '8080')
 
 class DependencyIntegrator:
 
     def __init__(self, prints=False):
         self.prints = prints
         redis_host = os.getenv('REDIS_HOST', 'localhost')  # Get from environment
-        self.queue = redis.Redis(host=redis_host, port=6379, db=0, password=os.getenv('REDIS_PASSWORD', None))
+        self.queue = redis.Redis(host=redis_host, port=os.getenv('REDIS_PORT', 6379), db=0, password=os.getenv('REDIS_PASSWORD', None))
         self.timeout = TIMEOUT #seconds
-        self.baseURL = f"http://{API_HOST}:5000/"
+        self.baseURL = f"http://{API_HOST}:{API_PORT}/"
         self.addAllPackagesToCache()
 
 

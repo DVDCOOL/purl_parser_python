@@ -36,7 +36,7 @@ class DependentFinder:
             
         self.queue = redis.Redis(
             host=redis_host, 
-            port=6379, 
+            port=os.getenv('REDIS_PORT', 6379),
             db=0, 
             password=redis_password,
             decode_responses=True
@@ -361,13 +361,33 @@ class DependentFinder:
                 elif last_processed_idx >= 0:
                     for dependent_idx in range(last_processed_idx, len(dependents_data)):
                         dependent_pkg = dependents_data[dependent_idx]
-                        if current_level == 0:
-                            print(f"{time.strftime('%H:%M:%S')}: LEVEL {current_level}: {dependent_idx + 1 + (pages - 1) * 100}/{len(dependents_data) + (pages - 1) * 100} - {package_name}")
+                        self.queue.xadd(
+                            'spider:progress',
+                            {
+                                'timestamp': time.strftime('%H:%M:%S'),
+                                'level': str(current_level),
+                                'package': package_name,
+                                'dependent_idx': str(dependent_idx + 1),
+                                'total_dependents': str(len(dependents_data)),
+                                'page': str(pages)
+                            },
+                            maxlen=1000  # Keep last 1000 entries
+                        )
                         self.findDependents(dependent_pkg, current_level + 1, (ecosystem, package_name))
                 else:
                     for dependent_idx, dependent_pkg in enumerate(dependents_data):
-                        if current_level == 0:
-                            print(f"{time.strftime('%H:%M:%S')}: LEVEL {current_level}: {dependent_idx + 1 + (pages - 1) * 100}/{len(dependents_data) + (pages - 1) * 100} - {package_name}")
+                        self.queue.xadd(
+                            'spider:progress',
+                            {
+                                'timestamp': time.strftime('%H:%M:%S'),
+                                'level': str(current_level),
+                                'package': package_name,
+                                'dependent_idx': str(dependent_idx + 1),
+                                'total_dependents': str(len(dependents_data)),
+                                'page': str(pages)
+                            },
+                            maxlen=1000  # Keep last 1000 entries
+                        )
                         self.findDependents(dependent_pkg, current_level + 1, (ecosystem, package_name))
                 
                 pages += 1

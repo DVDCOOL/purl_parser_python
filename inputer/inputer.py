@@ -9,7 +9,7 @@ def main():
         purls = f.read().splitlines()
 
     redis_host = os.getenv('REDIS_HOST', 'localhost')  # Get from environment
-    queue = redis.Redis(host=redis_host, port=6379, db=0, password=os.getenv('REDIS_PASSWORD', None))
+    queue = redis.Redis(host=redis_host, port=os.getenv('REDIS_PORT', 6379), db=0, password=os.getenv('REDIS_PASSWORD', None))
     queue.delete('waiting_room')
     print(f"Adding {len(purls)} PURLs to waiting_room queue...")
     for item in purls:
