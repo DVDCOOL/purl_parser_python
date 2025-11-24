@@ -6,7 +6,7 @@ import requests
 
 TIMEOUT = int(os.getenv('TIMEOUT', '60'))
 API_HOST = os.getenv('API_HOST', 'localhost')
-APP_PORT = os.getenv('APi_PORT', '8080')
+API_PORT = os.getenv('API_PORT', '8080')
 
 class DependencyIntegrator:
 

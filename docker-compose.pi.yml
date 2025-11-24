@@ -4,6 +4,8 @@ services:
   # Service 1: Redis (the message queue)
   redis:
     image: redis:7-alpine  # Official Redis image
+    env_file:
+      - .env  # ← Reads REDIS_PASSWORD from .env
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"  # Make it accessible on your computer too
     command: >
@@ -17,8 +19,7 @@ services:
       --save 300 10
       --save 60 10000
       --appendonly yes
-    env_file:
-      - .env  # ← Reads REDIS_PASSWORD from .env
+
     networks:
       - app-network
     restart: unless-stopped
