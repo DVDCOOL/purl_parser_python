@@ -36,10 +36,12 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_PORT=${REDIS_PORT}
+      - API_HOST=${API_HOST}
+      - API_PORT=${API_PORT}
       - FROM_EMAIL=${FROM_EMAIL}
-      - NUMBER_OF_LEVELS=${NUMBER_OF_LEVELS:-5}
-      - TIMEOUT=${TIMEOUT:-60}
-      - LOCK_TTL_SECONDS=${LOCK_TTL_SECONDS:-600}
+      - NUMBER_OF_LEVELS=${NUMBER_OF_LEVELS}
+      - TIMEOUT=${TIMEOUT}
+      - LOCK_TTL_SECONDS=${LOCK_TTL_SECONDS}
       - PYTHONUNBUFFERED=1  # Ensure real-time logging
     stop_grace_period: 30s
     restart: on-failure

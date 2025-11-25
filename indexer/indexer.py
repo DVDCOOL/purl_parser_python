@@ -16,33 +16,6 @@ class DependencyIntegrator:
         self.queue = redis.Redis(host=redis_host, port=os.getenv('REDIS_PORT', 6379), db=0, password=os.getenv('REDIS_PASSWORD', None))
         self.timeout = TIMEOUT #seconds
         self.baseURL = f"http://{API_HOST}:{API_PORT}/"
-        self.addAllPackagesToCache()
-
-
-    def addAllPackagesToCache(self):
-        """Preload all packages from DB into cache to minimize DB queries"""
-        self.queue.delete('processed_packages')
-        all_packages_found = False
-        page = 1
-        num_packages = 0
-        while not all_packages_found:
-            all_packages = requests.get(f"{self.baseURL}get_packages?page={page}")
-            if all_packages.status_code != 200:
-                print(f"Error fetching packages from database: {all_packages.status_code}")
-                return
-            else:
-                packages_list = all_packages.json().get('packages', [])
-                num_packages += len(packages_list)
-                if len(packages_list) > 0:
-                    for pkg in packages_list:
-                        self.queue.sadd('processed_packages', f"{pkg['ecosystem']}/{pkg['name']}")
-                    page += 1
-                else:
-                    all_packages_found = True
-
-        print(f"Loaded {num_packages} packages into cache.")
-        self.queue.sadd('processed_packages', 'true')
-        
 
     def storeDependenciesFromFinder(self):
         while True:
@@ -53,7 +26,6 @@ class DependencyIntegrator:
                     post_request = requests.post(f"{self.baseURL}insert_package/", json=data)
                     if post_request.status_code == 201:
                         print(post_request.json()['message'])
-                        self.queue.sadd('processed_packages', f"{data['ecosystem']}/{data['name']}")
                     else:
                         print(f"Error {post_request.status_code}: {post_request.json()['message']}")
                 elif data.get('type') == 'relation':

@@ -9,10 +9,12 @@ import signal
 import atexit
 import threading
 
-NUMBER_OF_LEVELS = int(os.getenv('NUMBER_OF_LEVELS', '5'))
+NUMBER_OF_LEVELS = int(os.getenv('NUMBER_OF_LEVELS', '10'))
 HEADERS = json.loads(os.getenv('HEADERS', None) or '{}')
 TIMEOUT = int(os.getenv('TIMEOUT', '60'))
 LOCK_TTL_SECONDS = int(os.getenv('LOCK_TTL_SECONDS', '600'))
+API_HOST = os.getenv('API_HOST', 'localhost')
+API_PORT = os.getenv('API_PORT', '8080')
 
 class DependentFinder:
     def __init__(self, prints=False):
@@ -21,7 +23,10 @@ class DependentFinder:
         self.requestLimit = 0
         self.start_time = time.time()
         self.requestMade = 0
-        self.packages = []
+        self.packages_in_DB = []
+        self.addAllPackagesToCache()
+        self.packages_found = []
+        self.relations_found = set()
         self.timeout = TIMEOUT
         self.failed = False
         self.shutdown_requested = False
@@ -48,6 +53,30 @@ class DependentFinder:
         
         # Register cleanup on ANY exit (backup)
         atexit.register(self._cleanup_on_exit)
+        
+    def addAllPackagesToCache(self):
+        """Preload all packages from DB into cache to minimize DB queries"""
+        all_packages_found = False
+        page = 1
+        num_packages = 0
+        while not all_packages_found:
+            all_packages = requests.get(f"http://{API_HOST}:{API_PORT}/get_packages?page={page}")
+            if all_packages.status_code != 200:
+                print(f"Error fetching packages from database: {all_packages.status_code}")
+                return
+            else:
+                packages_list = all_packages.json().get('packages', [])
+                num_packages += len(packages_list)
+                if len(packages_list) > 0:
+                    for pkg in packages_list:
+                        self.packages_in_DB.append(f"{pkg['ecosystem']}/{pkg['name']}")
+                    page += 1
+                else:
+                    all_packages_found = True
+
+        print(f"Loaded {num_packages} packages into cache.")
+        
+
 
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals gracefully"""
@@ -190,11 +219,6 @@ class DependentFinder:
             if self.prints:
                 print(f"Rate limit remaining: {self.requestRemaining}")
             
-            while not self.queue.sismember('processed_packages', 'true'):
-                if self.shutdown_requested:
-                    return
-                print("Waiting for cache to load...")
-                time.sleep(5)
 
             print(f"Starting to find dependents for {data.get('name')}...")
             self.findDependents(data)
@@ -243,16 +267,33 @@ class DependentFinder:
                 if self.requestRemaining % progress_interval == 0: 
                     elapsed_time = (time.time() - self.start_time) / 60
                     print(f"Progress: {self.requestRemaining} requests remaining after {elapsed_time:.1f} minutes")
+                    
+    def log(self, level, message, log_level="INFO"):
+        """Send log message to Redis stream for web UI"""
+        try:
+            self.queue.xadd(
+                'spider:logs',
+                {
+                    'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'level': str(level),
+                    'log_level': log_level,
+                    'message': message
+                },
+                maxlen=5000  # Keep last 5000 log entries
+            )
+        except Exception as e:
+            # Fallback to print if Redis fails
+            print(f"Failed to log to Redis: {e}")
+            print(f"{'  ' * level}{message}")
 
     def findDependents(self, package, current_level=0, parent_info=None):
         if self.shutdown_requested:
             return
             
         package_name = package.get("name")
-        if len(package_name.split('/')) == 2:
-            namespace, package_name = package_name.split('/')
-        else:
-            namespace = None
+        
+        namespace = None
+
         license = package.get("licenses")
         ecosystem = package.get("ecosystem")
         purl = package.get("purl")
@@ -263,12 +304,18 @@ class DependentFinder:
         normalized_license = package.get("normalized_licenses")
         package_key = f"{ecosystem}/{package_name}"
         
+        
         if current_level >= NUMBER_OF_LEVELS:
+            self.log(current_level, " Max level reached")
             return
         
-        if package_key in self.packages:
+        # EARLY EXIT: Only skip if it was processed in a *previous run*
+        # NOT during this recursion
+        if package_key in self.packages_found:
+            self.log(current_level, "  Already processed earlier in this run (fully done)")
             return
-        
+
+        # Acquire distributed lock
         lock_key = f"processing_lock:{package_key}"
         lock_acquired = False
         
@@ -281,17 +328,13 @@ class DependentFinder:
             )
             
             if not lock_acquired:
-                if self.prints:
-                    print(f"   ⏭️  Skipping {package_key} (locked by another worker)")
-                self.packages.append(package_key)
+                self.log(current_level, "  🔒 Locked by another worker - skipping")
                 return
             
             self.current_locks.append(lock_key)
-            
-            if self.prints:
-                print(f"🔒 Acquired lock: {package_key}")
-            
-            if not self.queue.sismember('processed_packages', package_key):
+
+            # Add to DB queue only if the package isn't stored yet
+            if package_key not in self.packages_in_DB:
                 self.queue.lpush('work_queue', json.dumps({
                     'type': 'package',
                     'ecosystem': ecosystem,
@@ -307,21 +350,36 @@ class DependentFinder:
                     'description': description,
                     'normalized_license': normalized_license
                 }))
+            else:
+                self.log(current_level, "  Already in DB/cache")
 
-            self.packages.append(package_key)
-            
+            # RELATIONS
             if parent_info:
-                self.queue.lpush('work_queue', json.dumps({
-                    'type': 'relation',
-                    'child': {
-                        'ecosystem': ecosystem,
-                        'name': package_name
-                    },
-                    'parent': {
-                        'ecosystem': parent_info[0],
-                        'name': parent_info[1]
-                    }
-                }))
+                relation_key = f"{parent_info[0]}/{parent_info[1]}→{ecosystem}/{package_name}"
+                
+                if relation_key not in self.relations_found:
+                    self.relations_found.add(relation_key)
+                    
+                    if hasattr(self, 'relations_in_DB') and relation_key in self.relations_in_DB:
+                        self.log(current_level, f"  Relation already in DB: {parent_info[1]} → {package_name}")
+                    else:
+                        self.queue.lpush('work_queue', json.dumps({
+                            'type': 'relation',
+                            'child': {
+                                'ecosystem': ecosystem,
+                                'name': package_name
+                            },
+                            'parent': {
+                                'ecosystem': parent_info[0],
+                                'name': parent_info[1]
+                            }
+                        }))
+                else:
+                    self.log(current_level, f"  Relation already queued this run: {parent_info[1]} → {package_name}")
+
+            # -------------------------------------------------------------
+            #                     DEPENDENTS LOOKUP
+            # -------------------------------------------------------------
 
             dependentsURL = package.get("dependent_packages_url")
             
@@ -343,39 +401,37 @@ class DependentFinder:
                 if not dependents_data:
                     break
                 
-                last_processed_idx = -1
-
+                
+                # ---------------------------------------------------------
+                # FIND FIRST UNPROCESSED PACKAGE
+                # ---------------------------------------------------------
+                first_unprocessed_idx = None
+                
                 for idx, dependent_pkg in enumerate(dependents_data):
                     pkg_key = f"{dependent_pkg.get('ecosystem')}/{dependent_pkg.get('name')}"
-                    if self.queue.sismember('processed_packages', pkg_key):
-                        last_processed_idx = idx
-                    else:
+                    if pkg_key not in self.packages_in_DB and pkg_key not in self.packages_found:
+                        first_unprocessed_idx = idx
+                        self.log(current_level, f"    → First unprocessed at #{idx + 1}: {dependent_pkg.get('name')}")
                         break
-
-                if last_processed_idx == len(dependents_data) - 1:
+                
+                if first_unprocessed_idx is None:
+                    # All cached → only process last to detect growth
                     last_pkg = dependents_data[-1]
                     last_key = f"{last_pkg.get('ecosystem')}/{last_pkg.get('name')}"
-                    if last_key not in self.packages:
-                        self.findDependents(dependents_data[-1], current_level + 1, (ecosystem, package_name))
                     
-                elif last_processed_idx >= 0:
-                    for dependent_idx in range(last_processed_idx, len(dependents_data)):
-                        dependent_pkg = dependents_data[dependent_idx]
-                        self.queue.xadd(
-                            'spider:progress',
-                            {
-                                'timestamp': time.strftime('%H:%M:%S'),
-                                'level': str(current_level),
-                                'package': package_name,
-                                'dependent_idx': str(dependent_idx + 1),
-                                'total_dependents': str(len(dependents_data)),
-                                'page': str(pages)
-                            },
-                            maxlen=1000  # Keep last 1000 entries
-                        )
-                        self.findDependents(dependent_pkg, current_level + 1, (ecosystem, package_name))
+                    if last_key not in self.packages_found:
+                        self.findDependents(last_pkg, current_level + 1, (ecosystem, package_name))
+                
                 else:
-                    for dependent_idx, dependent_pkg in enumerate(dependents_data):
+                    # Normal forward scanning
+                    self.log(current_level,
+                        f"    → Strategy: Start from first unprocessed #{first_unprocessed_idx + 1}/{len(dependents_data)}"
+                    )
+                    
+                    for dependent_idx in range(first_unprocessed_idx, len(dependents_data)):
+                        dependent_pkg = dependents_data[dependent_idx]
+                        pkg_key = f"{dependent_pkg.get('ecosystem')}/{dependent_pkg.get('name')}"
+
                         self.queue.xadd(
                             'spider:progress',
                             {
@@ -386,7 +442,7 @@ class DependentFinder:
                                 'total_dependents': str(len(dependents_data)),
                                 'page': str(pages)
                             },
-                            maxlen=1000  # Keep last 1000 entries
+                            maxlen=1000
                         )
                         self.findDependents(dependent_pkg, current_level + 1, (ecosystem, package_name))
                 
@@ -398,33 +454,41 @@ class DependentFinder:
                 dependents_response = requests.get(dependentsURL + f"?latest=true&page={pages}", headers=HEADERS)
                 self.requestMade += 1
                 self.updateRateLimit(dependents_response)
-                
-            if dependents_response.status_code != 200:
-                print(f"Error: {dependents_response.status_code}")
-        
+            
+            # -------------------------------------------------------------
+            #           FIX MOVES HERE — ONLY NOW WE MARK DONE
+            # -------------------------------------------------------------
+            self.packages_found.append(package_key)
+            if current_level == 0:
+                self.log(current_level, f"  ✔️ Finished fully: {package_key}")
+
         except Exception as e:
-            print(f"Exception occurred processing {package_key}: {e}")
+            self.log(current_level, f"  💥 Exception: {e}", "ERROR")
+            import traceback
+            traceback.print_exc()
             self.failed = True
             raise
         
         finally:
             if lock_acquired:
                 try:
-                    self.queue.delete(lock_key)
-                    try:
-                        self.current_locks.remove(lock_key)
-                    except ValueError:
-                        pass
-                    
-                    if self.prints:
-                        print(f"🔓 Released lock: {package_key}")
+                    with self._cleanup_lock:
+                        self.queue.delete(lock_key)
+                        try:
+                            self.current_locks.remove(lock_key)
+                        except ValueError:
+                            pass
+                    if current_level == 0:
+                        self.log(current_level, "  🔓 Lock released")
                 except Exception as e:
-                    print(f"⚠️  Failed to release lock {lock_key}: {e}")
+                    self.log(current_level, f"  ⚠️  Failed to release lock: {e}", "WARN")
+
+
 
 def main():
     finder = DependentFinder()
     finder.checkWaitingRoom()
-    print("Done!!")
+    finder.log(0, "Done!!")
 
 if __name__ == "__main__":
     main()

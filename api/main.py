@@ -47,7 +47,7 @@ def get_packages():
             repository_url = package[9]
             homepage_url = package[10]
             description = package[11]
-            dependents = [{'ecosystem': dep[0], 'name': dep[1], 'license': dep[2]} for dep in (package[12] or [])]
+            dependents = [{'ecosystem': dep[0], 'name': dep[2], 'license': dep[4]} for dep in (package[12] or [])]
             number_of_dependents = len(dependents)
             output.append({
                 'purl': purl,

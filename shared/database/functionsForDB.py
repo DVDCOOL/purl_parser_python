@@ -317,10 +317,9 @@ class Database:
         LEFT JOIN HomepageURLs hu   ON p.HomepageURLID = hu.HomepageURLID
         LEFT JOIN Descriptions d    ON p.DescriptionID = d.DescriptionID
 
-        -- join dependency rows (depends on this package)
-        LEFT JOIN Dependencies dep  ON dep.PackageID = p.PackageID
-        LEFT JOIN Packages p2       ON dep.DependsOnPackageID = p2.PackageID
-        LEFT JOIN Ecosystems e2          ON p2.EcosystemID = e2.EcosystemID
+        LEFT JOIN Dependencies dep  ON dep.DependsOnPackageID = p.PackageID
+        LEFT JOIN Packages p2       ON dep.PackageID = p2.PackageID
+        LEFT JOIN Ecosystems e2     ON p2.EcosystemID = e2.EcosystemID
         LEFT JOIN Namespaces ns2    ON p2.NamespaceID = ns2.NamespaceID
         LEFT JOIN Names n2          ON p2.NameID = n2.NameID
         LEFT JOIN Versions v2       ON p2.VersionID = v2.VersionID
