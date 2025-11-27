@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Spider Progress</h2>
+    <div id="progress"></div>
+</div>
+
+<div class="card">
+    <h2>Logs</h2>
+    <pre id="logs" class="logs">Waiting...</pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const progressDiv = document.getElementById("progress");
+    const logsDiv = document.getElementById("logs");
+
+    const es = new EventSource("/progress-stream");
+
+    const levels = {};
+    const logLines = [];
+    const maxLogs = 500;
+
+    es.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "progress") {
+            const lvl = data.level;
+
+            // Remove deeper levels
+            Object.keys(levels).map(n=>+n).filter(n=>n>lvl).forEach(n=>delete levels[n]);
+
+            levels[lvl] = data.data;
+            renderProgress();
+        }
+
+        if (data.type === "log") {
+            logLines.push(`${data.data.timestamp} ${'  '.repeat(data.data.level)}${data.data.message}`);
+            if (logLines.length > maxLogs) logLines.shift();
+            logsDiv.textContent = logLines.join("\n");
+        }
+    };
+
+    function renderProgress() {
+        let html = "";
+        Object.entries(levels)
+            .sort(([a],[b]) => a - b)
+            .forEach(([lvl, info]) => {
+                html += `<div>LEVEL ${lvl}: ${info.progress} - ${info.package} (page ${info.page})</div>`;
+            });
+        progressDiv.innerHTML = html;
+    }
+})();
+</script>
+{% endblock %}

@@ -1,9 +1,107 @@
 import duckdb
 
 class Database:
-    def __init__(self, db_path):
+    def __init__(self, db_path, read_only=False):
+        """
+        Initialize database connection
+        Args:
+            db_path: Path to DuckDB file
+            read_only: If True, open in read-only mode for better concurrency
+        """
         self.dbPath = db_path
-        self.con = duckdb.connect(self.dbPath)
+        self.con = duckdb.connect(self.dbPath, read_only=read_only)
+
+    def getPackageCount(self):
+        """
+        Efficient count using DuckDB - MUCH faster than len(getAllPackages())
+        """
+        query = """
+        SELECT COUNT(DISTINCT PackageID) 
+        FROM Packages
+        """
+        result = self.con.execute(query).fetchone()
+        return result[0] if result else 0
+
+    def getPackagesPaginated(self, limit=100, offset=0):
+        """
+        Get packages with native DuckDB pagination - avoids loading all data into memory
+        This is the key optimization for concurrent reads!
+        """
+        query = """
+        WITH RankedPackages AS (
+            SELECT 
+                p.PackageID,
+                ROW_NUMBER() OVER (
+                    PARTITION BY e.Ecosystem, ns.Namespace, n.Name 
+                    ORDER BY p.PackageID
+                ) AS rn
+            FROM Packages p
+            LEFT JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
+            LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
+            LEFT JOIN Names n ON p.NameID = n.NameID
+        ),
+        FilteredPackages AS (
+            SELECT PackageID
+            FROM RankedPackages
+            WHERE rn = 1
+            ORDER BY PackageID
+            LIMIT ? OFFSET ?
+        )
+        SELECT
+            array_agg(DISTINCT p.PackageID) AS PackageIDs,
+            pu.PURL,
+            e.Ecosystem,
+            ns.Namespace,
+            n.Name,
+            array_agg(DISTINCT v.Version) FILTER (WHERE v.Version IS NOT NULL) AS Versions,
+            array_agg(DISTINCT ROW(qk.Key, qv.Value)) FILTER (WHERE qk.Key IS NOT NULL) AS Qualifiers,
+            array_agg(DISTINCT sp.Subpath) FILTER (WHERE sp.Subpath IS NOT NULL) AS Subpaths,
+            array_agg(DISTINCT l.License) FILTER (WHERE l.License IS NOT NULL) AS Licenses,
+            ru.RepositoryURL,
+            hu.HomepageURL,
+            d.Description,
+
+            -- Dependencies as an array of structs
+            array_agg(DISTINCT ROW(
+                e2.Ecosystem,
+                ns2.Namespace,
+                n2.Name,
+                v2.Version,
+                l2.License
+            )) FILTER (WHERE dep.DependsOnPackageID IS NOT NULL) AS Dependencies
+
+        FROM FilteredPackages fp
+        JOIN Packages p ON fp.PackageID = p.PackageID
+        LEFT JOIN Ecosystems e ON p.EcosystemID = e.EcosystemID
+        LEFT JOIN Namespaces ns ON p.NamespaceID = ns.NamespaceID
+        LEFT JOIN Names n ON p.NameID = n.NameID
+        LEFT JOIN Versions v ON p.VersionID = v.VersionID
+        LEFT JOIN Qualifiers q ON p.QualifierID = q.QualifierID
+        LEFT JOIN QualifierKeys qk ON q.KeyID = qk.KeyID
+        LEFT JOIN QualifierValues qv ON q.ValueID = qv.ValueID
+        LEFT JOIN Subpaths sp ON p.SubpathID = sp.SubpathID
+        LEFT JOIN Licenses l ON p.LicenseID = l.LicenseID
+        LEFT JOIN PURLs pu ON p.PURLID = pu.PURLID
+        LEFT JOIN RepositoryURLs ru ON p.RepositoryURLID = ru.RepositoryURLID
+        LEFT JOIN HomepageURLs hu ON p.HomepageURLID = hu.HomepageURLID
+        LEFT JOIN Descriptions d ON p.DescriptionID = d.DescriptionID
+
+        LEFT JOIN Dependencies dep ON dep.DependsOnPackageID = p.PackageID
+        LEFT JOIN Packages p2 ON dep.PackageID = p2.PackageID
+        LEFT JOIN Ecosystems e2 ON p2.EcosystemID = e2.EcosystemID
+        LEFT JOIN Namespaces ns2 ON p2.NamespaceID = ns2.NamespaceID
+        LEFT JOIN Names n2 ON p2.NameID = n2.NameID
+        LEFT JOIN Versions v2 ON p2.VersionID = v2.VersionID
+        LEFT JOIN Licenses l2 ON p2.LicenseID = l2.LicenseID
+
+        GROUP BY
+            e.Ecosystem, ns.Namespace, n.Name,
+            pu.PURL, ru.RepositoryURL, hu.HomepageURL, d.Description
+
+        ORDER BY MIN(p.PackageID);
+        """
+        
+        return self.con.execute(query, (limit, offset)).fetchall()
     
     def showAllTables(self):
         """Display all tables and their contents"""

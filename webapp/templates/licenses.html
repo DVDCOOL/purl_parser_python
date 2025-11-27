@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Licenses — Spider Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="/">Spider Dashboard</a></div>
+    <nav class="nav">
+      <a href="/">Monitor</a>
+      <a href="/packages">Packages</a>
+      <a href="/licenses" class="active">Licenses</a>
+      <a href="/addpurl">Add PURLs</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <h1>All Licenses</h1>
+      <div id="licenses-table">Loading…</div>
+    </div>
+  </main>
+
+  <script>
+    fetch('/db/licenses')
+      .then(r=>r.json())
+      .then(data=>{
+        const out = document.getElementById('licenses-table');
+        const licenses = data.licenses || {};
+        let html = '<table class="nice-table"><thead><tr><th>License</th><th>Count</th></tr></thead><tbody>';
+        Object.entries(licenses).forEach(([lic, cnt])=>{
+          html += `<tr><td>${lic}</td><td>${cnt}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        out.innerHTML = html;
+      })
+      .catch(e=>{
+        document.getElementById('licenses-table').innerText = 'Failed to fetch licenses';
+      });
+  </script>
+</body>
+</html>

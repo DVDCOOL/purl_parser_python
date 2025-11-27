@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Packages — Spider Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="/">Spider Dashboard</a></div>
+    <nav class="nav">
+      <a href="/">Monitor</a>
+      <a href="/packages" class="active">Packages</a>
+      <a href="/licenses">Licenses</a>
+      <a href="/addpurl">Add PURLs</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="page-header">
+        <h1>All Packages</h1>
+        <div class="controls">
+          Show
+          <select id="limit-selector">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+          </select>
+          per page
+          <span class="total">Total: <strong id="package-count">—</strong></span>
+        </div>
+      </div>
+
+      <div id="packages-table">Loading packages…</div>
+
+      <div class="pagination">
+        <button id="prev-page">Previous</button>
+        <span id="page-display"></span>
+        <button id="next-page">Next</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      let currentPage = 1;
+      const limitSel = document.getElementById('limit-selector');
+      const tableDiv = document.getElementById('packages-table');
+      const cntSpan = document.getElementById('package-count');
+      const pageDisplay = document.getElementById('page-display');
+      const prevBtn = document.getElementById('prev-page');
+      const nextBtn = document.getElementById('next-page');
+
+      function escapeHtml(s){ if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[ch])); }
+
+      function loadPackages(page=1){
+        currentPage = page;
+        const limit = parseInt(limitSel.value,10) || 100;
+
+        fetch(`/api/packages?page=${currentPage}&limit=${limit}`)
+          .then(r=>r.json())
+          .then(data=>{
+            const pkgs = data.packages || [];
+            cntSpan.textContent = data.total_packages || '—';
+            pageDisplay.textContent = `Page ${data.page || currentPage}`;
+            prevBtn.disabled = (data.page <= 1);
+            nextBtn.disabled = !data.has_next;
+
+            if (!pkgs.length){
+              tableDiv.innerHTML = '<div class="muted">No packages found on this page.</div>';
+              return;
+            }
+
+            let html = `<table class="nice-table"><thead>
+              <tr>
+                <th>#</th>
+                <th>Ecosystem</th>
+                <th>Name</th>
+                <th>Version</th>
+                <th>License</th>
+                <th>Dependents</th>
+                <th>Description</th>
+              </tr></thead><tbody>`;
+
+            pkgs.forEach((p, idx) => {
+              html += `<tr>
+                <td>${(data.page-1 || 0) * data.limit + idx + 1}</td>
+                <td>${escapeHtml(p.ecosystem)}</td>
+                <td>${escapeHtml(p.name)}</td>
+                <td>${escapeHtml(p.version || '')}</td>
+                <td>${escapeHtml(p.license || '')}</td>
+                <td>${p.number_of_dependents ?? 0}</td>
+                <td>${escapeHtml(p.description || '')}</td>
+              </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            tableDiv.innerHTML = html;
+          })
+          .catch(err=>{
+            tableDiv.innerHTML = `<div class="error">Failed to load packages: ${err}</div>`;
+          });
+      }
+
+      prevBtn.addEventListener('click', ()=>{ if (currentPage>1) loadPackages(currentPage-1); });
+      nextBtn.addEventListener('click', ()=>{ loadPackages(currentPage+1); });
+      limitSel.addEventListener('change', ()=>{ loadPackages(1); });
+
+      // initial load
+      loadPackages(1);
+    })();
+  </script>
+</body>
+</html>

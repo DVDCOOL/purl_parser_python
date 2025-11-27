@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Add PURLs — Spider Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="/">Spider Dashboard</a></div>
+    <nav class="nav">
+      <a href="/">Monitor</a>
+      <a href="/packages">Packages</a>
+      <a href="/licenses">Licenses</a>
+      <a href="/addpurl" class="active">Add PURLs</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <h1>Add PURLs</h1>
+      <p>Paste one PURL per line (e.g. <code>pkg:pypi/requests@2.31.0</code>)</p>
+      <textarea id="purl-input" class="purl-box" placeholder="pkg:pypi/requests@2.31.0"></textarea>
+      <div style="margin-top:10px;">
+        <button id="submit-btn">Submit</button>
+        <span id="submit-result" class="muted"></span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('submit-btn').addEventListener('click', ()=>{
+      const text = document.getElementById('purl-input').value;
+      fetch('/add_purls', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({purls: text})
+      }).then(r=>r.json())
+        .then(resp=>{
+          document.getElementById('submit-result').textContent = resp.status || JSON.stringify(resp);
+        }).catch(err=>{
+          document.getElementById('submit-result').textContent = 'Error: '+err;
+        });
+    });
+  </script>
+</body>
+</html>

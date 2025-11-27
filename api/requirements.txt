@@ -1,2 +1,4 @@
 flask
 duckdb
+threading
+functools
