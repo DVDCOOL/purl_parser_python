@@ -42,6 +42,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DB_PATH=${DB_PATH}
+      - FLASK_ENV=production
     networks:
       - app-network
     healthcheck:
