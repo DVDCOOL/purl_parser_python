@@ -3,7 +3,9 @@ import redis
 import json
 import requests
 import os
-from collections import defaultdict
+from collections import defaultdict, deque
+import threading
+import time
 
 app = Flask(__name__, 
             static_folder='static',
@@ -20,7 +22,16 @@ redis_client = redis.Redis(
 API_HOST = os.getenv('API_HOST', 'localhost')
 API_PORT = os.getenv('API_PORT', 8080)
 
+# In-memory buffers for real-time updates
 level_states = defaultdict(dict)
+log_buffer = deque(maxlen=1000)  # Keep last 1000 log entries
+progress_buffer = deque(maxlen=100)  # Keep last 100 progress updates
+
+# Lock for thread-safe access to buffers
+buffer_lock = threading.Lock()
+
+# Event for notifying SSE clients of new data
+update_event = threading.Event()
 
 
 @app.route('/')
@@ -43,86 +54,127 @@ def addpurl_page():
     return render_template('addpurl.html')
 
 
+# ============================================================================
+#                           WEBHOOK ENDPOINTS (NEW)
+# ============================================================================
+
+@app.route('/webhook/progress', methods=['POST'])
+def webhook_progress():
+    """Receive progress updates from spider via HTTP POST"""
+    try:
+        data = request.get_json()
+        
+        level = int(data.get('level', 0))
+        timestamp = data.get('timestamp')
+        package = data.get('package')
+        dependent_idx = int(data.get('dependent_idx', 0))
+        total_dependents = int(data.get('total_dependents', 0))
+        page = int(data.get('page', 1))
+        
+        with buffer_lock:
+            # Clear higher levels when we go back to a lower level
+            levels_to_remove = [l for l in level_states.keys() if l > level]
+            for l in levels_to_remove:
+                del level_states[l]
+            
+            # Update current level state
+            level_states[level] = {
+                'timestamp': timestamp,
+                'package': package,
+                'dependent_idx': dependent_idx,
+                'total_dependents': total_dependents,
+                'page': page
+            }
+            
+            # Add to progress buffer for SSE streaming
+            progress_buffer.append({
+                'type': 'progress',
+                'level': level,
+                'removed_levels': levels_to_remove,
+                'data': {
+                    'timestamp': timestamp,
+                    'progress': f"{dependent_idx}/{total_dependents}",
+                    'package': package,
+                    'page': page
+                }
+            })
+        
+        # Notify SSE clients
+        update_event.set()
+        
+        return jsonify({'status': 'ok'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error in progress webhook: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/webhook/log', methods=['POST'])
+def webhook_log():
+    """Receive log messages from spider via HTTP POST"""
+    try:
+        data = request.get_json()
+        
+        with buffer_lock:
+            log_entry = {
+                'type': 'log',
+                'data': {
+                    'timestamp': data.get('timestamp'),
+                    'level': int(data.get('level', 0)),
+                    'log_level': data.get('log_level', 'INFO'),
+                    'message': data.get('message')
+                }
+            }
+            log_buffer.append(log_entry)
+        
+        # Notify SSE clients
+        update_event.set()
+        
+        return jsonify({'status': 'ok'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error in log webhook: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+#                           SSE STREAMING ENDPOINT
+# ============================================================================
+
 @app.route('/progress-stream')
 def progress_stream():
     def event_stream():
-        yield f"data: {json.dumps({'type': 'init', 'levels': dict(level_states)})}\n\n"
+        # Send initial state
+        with buffer_lock:
+            yield f"data: {json.dumps({'type': 'init', 'levels': dict(level_states)})}\n\n"
+            
+            # Send recent logs
+            for log in list(log_buffer):
+                yield f"data: {json.dumps(log)}\n\n"
 
         try:
-            last_progress_id = '$'
-            last_log_id = '$'
-
             while True:
-                progress_messages = redis_client.xread(
-                    {'spider:progress': last_progress_id},
-                    block=500,
-                    count=10
-                )
-
-                log_messages = redis_client.xread(
-                    {'spider:logs': last_log_id},
-                    block=500,
-                    count=10
-                )
-
-                if progress_messages:
-                    for stream, msgs in progress_messages:
-                        for msg_id, fields in msgs:
-                            try:
-                                level = int(fields['level'])
-                            except Exception:
-                                level = 0
-
-                            levels_to_remove = [l for l in level_states.keys() if l > level]
-                            for l in levels_to_remove:
-                                del level_states[l]
-
-                            level_states[level] = {
-                                'timestamp': fields.get('timestamp'),
-                                'package': fields.get('package'),
-                                'dependent_idx': int(fields.get('dependent_idx', 0)),
-                                'total_dependents': int(fields.get('total_dependents', 0)),
-                                'page': int(fields.get('page', 1))
-                            }
-
-                            page = level_states[level]['page']
-                            idx = level_states[level]['dependent_idx']
-                            total = level_states[level]['total_dependents']
-
-                            items_per_page = 100
-                            global_idx = idx + (page - 1) * items_per_page
-                            global_total = total + (page - 1) * items_per_page
-
-                            update = {
-                                'type': 'progress',
-                                'level': level,
-                                'removed_levels': levels_to_remove,
-                                'data': {
-                                    'timestamp': level_states[level]['timestamp'],
-                                    'progress': f"{global_idx}/{global_total}",
-                                    'package': level_states[level]['package'],
-                                    'page': page
-                                }
-                            }
-                            yield f"data: {json.dumps(update)}\n\n"
-                            last_progress_id = msg_id
-
-                if log_messages:
-                    for stream, msgs in log_messages:
-                        for msg_id, fields in msgs:
-                            log_update = {
-                                'type': 'log',
-                                'data': {
-                                    'timestamp': fields.get('timestamp'),
-                                    'level': int(fields.get('level', 0)),
-                                    'log_level': fields.get('log_level', 'INFO'),
-                                    'message': fields.get('message')
-                                }
-                            }
-                            yield f"data: {json.dumps(log_update)}\n\n"
-                            last_log_id = msg_id
-
-                if not progress_messages and not log_messages:
+                # Wait for new updates (with timeout for heartbeat)
+                update_event.wait(timeout=30)
+                update_event.clear()
+                
+                # Send all pending updates
+                with buffer_lock:
+                    # Send progress updates
+                    while progress_buffer:
+                        update = progress_buffer.popleft()
+                        yield f"data: {json.dumps(update)}\n\n"
+                    
+                    # Send log updates
+                    temp_logs = []
+                    while log_buffer and len(temp_logs) < 10:  # Send max 10 logs at once
+                        temp_logs.append(log_buffer.popleft())
+                    
+                    for log in temp_logs:
+                        yield f"data: {json.dumps(log)}\n\n"
+                
+                # Heartbeat (if no updates were sent)
+                if not temp_logs and not progress_buffer:
                     yield f": heartbeat\n\n"
 
         except GeneratorExit:
@@ -132,6 +184,10 @@ def progress_stream():
 
     return Response(event_stream(), mimetype='text/event-stream')
 
+
+# ============================================================================
+#                           EXISTING API ENDPOINTS
+# ============================================================================
 
 @app.route('/api/packages')
 def api_packages():

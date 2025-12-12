@@ -15,6 +15,8 @@ TIMEOUT = int(os.getenv('TIMEOUT', '60'))
 LOCK_TTL_SECONDS = int(os.getenv('LOCK_TTL_SECONDS', '600'))
 API_HOST = os.getenv('API_HOST', 'localhost')
 API_PORT = os.getenv('API_PORT', '8080')
+WEBAPP_HOST = os.getenv('WEBAPP_HOST', 'localhost')  # NEW
+WEBAPP_PORT = os.getenv('WEBAPP_PORT', '5000')      # NEW
 
 class DependentFinder:
     def __init__(self, prints=False):
@@ -47,6 +49,9 @@ class DependentFinder:
             decode_responses=True
         )
         
+        # Base URL for webapp webhooks
+        self.webhook_base = f"http://{WEBAPP_HOST}:{WEBAPP_PORT}"
+        
         # Register signal handlers
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -60,7 +65,7 @@ class DependentFinder:
         page = 1
         num_packages = 0
         while not all_packages_found:
-            all_packages = requests.get(f"http://{API_HOST}:{API_PORT}/get_packages?page={page}")
+            all_packages = requests.get(f"http://{API_HOST}:{API_PORT}/get_packages", params={"page": page, "per_page": 100})
             if all_packages.status_code != 200:
                 print(f"Error fetching packages from database: {all_packages.status_code}")
                 return
@@ -75,8 +80,6 @@ class DependentFinder:
                     all_packages_found = True
 
         print(f"Loaded {num_packages} packages into cache.")
-        
-
 
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals gracefully"""
@@ -219,7 +222,6 @@ class DependentFinder:
             if self.prints:
                 print(f"Rate limit remaining: {self.requestRemaining}")
             
-
             print(f"Starting to find dependents for {data.get('name')}...")
             self.findDependents(data)
         else:
@@ -267,24 +269,44 @@ class DependentFinder:
                 if self.requestRemaining % progress_interval == 0: 
                     elapsed_time = (time.time() - self.start_time) / 60
                     print(f"Progress: {self.requestRemaining} requests remaining after {elapsed_time:.1f} minutes")
-                    
-    def log(self, level, message, log_level="INFO"):
-        """Send log message to Redis stream for web UI"""
+    
+    def send_log(self, level, message, log_level="INFO"):
+        """Send log message to webapp via HTTP POST"""
         try:
-            self.queue.xadd(
-                'spider:logs',
-                {
+            requests.post(
+                f"{self.webhook_base}/webhook/log",
+                json={
                     'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-                    'level': str(level),
+                    'level': level,
                     'log_level': log_level,
                     'message': message
                 },
-                maxlen=5000  # Keep last 5000 log entries
+                timeout=2  # Quick timeout - don't wait long for logs
             )
         except Exception as e:
-            # Fallback to print if Redis fails
-            print(f"Failed to log to Redis: {e}")
-            print(f"{'  ' * level}{message}")
+            # Fallback to print if webhook fails
+            
+            print(f"Failed to send log webhook: {e}")
+            
+    
+    def send_progress(self, level, package_name, dependent_idx, total_dependents, page):
+        """Send progress update to webapp via HTTP POST"""
+        try:
+            requests.post(
+                f"{self.webhook_base}/webhook/progress",
+                json={
+                    'timestamp': time.strftime('%H:%M:%S'),
+                    'level': level,
+                    'package': package_name,
+                    'dependent_idx': dependent_idx,
+                    'total_dependents': total_dependents,
+                    'page': page
+                },
+                timeout=2
+            )
+        except Exception as e:
+            if self.prints:
+                print(f"Failed to send progress webhook: {e}")
 
     def findDependents(self, package, current_level=0, parent_info=None):
         if self.shutdown_requested:
@@ -293,7 +315,6 @@ class DependentFinder:
         package_name = package.get("name")
         
         namespace = None
-
         license = package.get("licenses")
         ecosystem = package.get("ecosystem")
         purl = package.get("purl")
@@ -304,18 +325,14 @@ class DependentFinder:
         normalized_license = package.get("normalized_licenses")
         package_key = f"{ecosystem}/{package_name}"
         
-        
         if current_level >= NUMBER_OF_LEVELS:
-            self.log(current_level, " Max level reached")
+            self.send_log(current_level, " Max level reached")
             return
         
-        # EARLY EXIT: Only skip if it was processed in a *previous run*
-        # NOT during this recursion
         if package_key in self.packages_found:
-            self.log(current_level, "  Already processed earlier in this run (fully done)")
+            self.send_log(current_level, "  Already processed earlier in this run (fully done)")
             return
 
-        # Acquire distributed lock
         lock_key = f"processing_lock:{package_key}"
         lock_acquired = False
         
@@ -328,12 +345,11 @@ class DependentFinder:
             )
             
             if not lock_acquired:
-                self.log(current_level, "  🔒 Locked by another worker - skipping")
+                self.send_log(current_level, "  🔒 Locked by another worker - skipping")
                 return
             
             self.current_locks.append(lock_key)
 
-            # Add to DB queue only if the package isn't stored yet
             if package_key not in self.packages_in_DB:
                 self.queue.lpush('work_queue', json.dumps({
                     'type': 'package',
@@ -351,9 +367,8 @@ class DependentFinder:
                     'normalized_license': normalized_license
                 }))
             else:
-                self.log(current_level, "  Already in DB/cache")
+                self.send_log(current_level, "  Already in DB/cache")
 
-            # RELATIONS
             if parent_info:
                 relation_key = f"{parent_info[0]}/{parent_info[1]}→{ecosystem}/{package_name}"
                 
@@ -361,7 +376,7 @@ class DependentFinder:
                     self.relations_found.add(relation_key)
                     
                     if hasattr(self, 'relations_in_DB') and relation_key in self.relations_in_DB:
-                        self.log(current_level, f"  Relation already in DB: {parent_info[1]} → {package_name}")
+                        self.send_log(current_level, f"  Relation already in DB: {parent_info[1]} → {package_name}")
                     else:
                         self.queue.lpush('work_queue', json.dumps({
                             'type': 'relation',
@@ -375,11 +390,7 @@ class DependentFinder:
                             }
                         }))
                 else:
-                    self.log(current_level, f"  Relation already queued this run: {parent_info[1]} → {package_name}")
-
-            # -------------------------------------------------------------
-            #                     DEPENDENTS LOOKUP
-            # -------------------------------------------------------------
+                    self.send_log(current_level, f"  Relation already queued this run: {parent_info[1]} → {package_name}")
 
             dependentsURL = package.get("dependent_packages_url")
             
@@ -401,21 +412,16 @@ class DependentFinder:
                 if not dependents_data:
                     break
                 
-                
-                # ---------------------------------------------------------
-                # FIND FIRST UNPROCESSED PACKAGE
-                # ---------------------------------------------------------
                 first_unprocessed_idx = None
                 
                 for idx, dependent_pkg in enumerate(dependents_data):
                     pkg_key = f"{dependent_pkg.get('ecosystem')}/{dependent_pkg.get('name')}"
                     if pkg_key not in self.packages_in_DB and pkg_key not in self.packages_found:
                         first_unprocessed_idx = idx
-                        self.log(current_level, f"    → First unprocessed at #{idx + 1}: {dependent_pkg.get('name')}")
+                        self.send_log(current_level, f"    → First unprocessed at #{idx + 1}: {dependent_pkg.get('name')}")
                         break
                 
                 if first_unprocessed_idx is None:
-                    # All cached → only process last to detect growth
                     last_pkg = dependents_data[-1]
                     last_key = f"{last_pkg.get('ecosystem')}/{last_pkg.get('name')}"
                     
@@ -423,8 +429,7 @@ class DependentFinder:
                         self.findDependents(last_pkg, current_level + 1, (ecosystem, package_name))
                 
                 else:
-                    # Normal forward scanning
-                    self.log(current_level,
+                    self.send_log(current_level,
                         f"    → Strategy: Start from first unprocessed #{first_unprocessed_idx + 1}/{len(dependents_data)}"
                     )
                     
@@ -432,18 +437,15 @@ class DependentFinder:
                         dependent_pkg = dependents_data[dependent_idx]
                         pkg_key = f"{dependent_pkg.get('ecosystem')}/{dependent_pkg.get('name')}"
 
-                        self.queue.xadd(
-                            'spider:progress',
-                            {
-                                'timestamp': time.strftime('%H:%M:%S'),
-                                'level': str(current_level),
-                                'package': package_name,
-                                'dependent_idx': str(dependent_idx + 1),
-                                'total_dependents': str(len(dependents_data)),
-                                'page': str(pages)
-                            },
-                            maxlen=1000
+                        # Send progress via HTTP webhook
+                        self.send_progress(
+                            level=current_level,
+                            package_name=package_name,
+                            dependent_idx=dependent_idx + 1,
+                            total_dependents=len(dependents_data),
+                            page=pages
                         )
+                        
                         self.findDependents(dependent_pkg, current_level + 1, (ecosystem, package_name))
                 
                 pages += 1
@@ -455,15 +457,12 @@ class DependentFinder:
                 self.requestMade += 1
                 self.updateRateLimit(dependents_response)
             
-            # -------------------------------------------------------------
-            #           FIX MOVES HERE — ONLY NOW WE MARK DONE
-            # -------------------------------------------------------------
             self.packages_found.append(package_key)
             if current_level == 0:
-                self.log(current_level, f"  ✔️ Finished fully: {package_key}")
+                self.send_log(current_level, f"  ✔️ Finished fully: {package_key}")
 
         except Exception as e:
-            self.log(current_level, f"  💥 Exception: {e}", "ERROR")
+            self.send_log(current_level, f"  💥 Exception: {e}", "ERROR")
             import traceback
             traceback.print_exc()
             self.failed = True
@@ -479,16 +478,15 @@ class DependentFinder:
                         except ValueError:
                             pass
                     if current_level == 0:
-                        self.log(current_level, "  🔓 Lock released")
+                        self.send_log(current_level, "  🔓 Lock released")
                 except Exception as e:
-                    self.log(current_level, f"  ⚠️  Failed to release lock: {e}", "WARN")
-
+                    self.send_log(current_level, f"  ⚠️  Failed to release lock: {e}", "WARN")
 
 
 def main():
     finder = DependentFinder()
     finder.checkWaitingRoom()
-    finder.log(0, "Done!!")
+    finder.send_log(0, "Done!!")
 
 if __name__ == "__main__":
     main()
