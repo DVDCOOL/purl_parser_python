@@ -5,7 +5,6 @@ WORKDIR /app
 COPY indexer/requirements.txt /app/indexer/requirements.txt
 RUN pip install --no-cache-dir -r /app/indexer/requirements.txt
 
-#COPY shared/ /app/shared/
 COPY indexer/ /app/indexer/
 
 

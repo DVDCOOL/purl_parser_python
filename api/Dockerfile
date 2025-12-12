@@ -16,4 +16,4 @@ WORKDIR /app/api
 ENV PYTHONPATH="/app/shared:${PYTHONPATH}"
 
 # Use gunicorn instead of python for production
-CMD ["gunicorn", "-k", "gevent", "-w", "4", "--worker-connections", "1000", "-b", "0.0.0.0:8080", "--timeout", "120", "main:app"]
+CMD ["python", "main.py"]
