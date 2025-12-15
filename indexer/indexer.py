@@ -19,7 +19,7 @@ class DependencyIntegrator:
 
     def storeDependenciesFromFinder(self):
         while True:
-            message = self.queue.brpop('work_queue')
+            message = self.queue.brpop('output_queue')
             if message:
                 data = json.loads(message[1])
                 if data.get('type') == 'package':

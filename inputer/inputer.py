@@ -10,12 +10,12 @@ def main():
 
     redis_host = os.getenv('REDIS_HOST', 'localhost')  # Get from environment
     queue = redis.Redis(host=redis_host, port=os.getenv('REDIS_PORT', 6379), db=0, password=os.getenv('REDIS_PASSWORD', None))
-    queue.delete('waiting_room')
-    print(f"Adding {len(purls)} PURLs to waiting_room queue...")
+    queue.delete('input_queue')
+    print(f"Adding {len(purls)} PURLs to input_queue...")
     for item in purls:
-        queue.lpush('waiting_room', item)
-    print(f"Added {queue.llen('waiting_room')} PURLs to waiting_room queue.")
-    queue.lpush('waiting_room', 'true')  # Signal end of input
+        queue.lpush('input_queue', item)
+    print(f"Added {queue.llen('input_queue')} PURLs to input_queue.")
+    queue.lpush('input_queue', 'true')  # Signal end of input
 
 if __name__ == "__main__":
     main()
