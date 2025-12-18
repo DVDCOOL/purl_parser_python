@@ -87,10 +87,12 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_PORT=${REDIS_PORT}
       - PYTHONUNBUFFERED=1
+      - API_HOST=api  # Tell it where API is
+      - API_PORT=${API_PORT} 
     networks:
       - app-network
     healthcheck:
