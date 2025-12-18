@@ -29,51 +29,61 @@
   </main>
 
   <script>
-    // SSE connection to your existing endpoint (unchanged)
-    (function(){
-      const progressDiv = document.getElementById('progress');
-      const logsPre = document.getElementById('logs');
-      logsPre.textContent = '';
+    (function() {
+        const progressDiv = document.getElementById('progress');
+        const logsPre = document.getElementById('logs');
+        logsPre.textContent = '';
 
-      try {
         const es = new EventSource('/progress-stream');
-        const levels = {};
-        const lines = [];
-        const maxLines = 1000;
+        const logLines = [];
+        const maxLogs = 500;
 
-        es.onmessage = function(ev) {
-          try {
-            const data = JSON.parse(ev.data);
-            if (data.type === 'progress') {
-              const lvl = data.level;
-              // remove deeper levels
-              Object.keys(levels).map(n=>+n).filter(n=>n>lvl).forEach(n=>delete levels[n]);
-              levels[lvl] = data.data;
-              renderProgress();
-            } else if (data.type === 'log') {
-              lines.push(`${data.data.timestamp} ${'  '.repeat(data.data.level)}${data.data.message}`);
-              if (lines.length > maxLines) lines.shift();
-              logsPre.textContent = lines.join("\n");
-              logsPre.scrollTop = logsPre.scrollHeight;
-            } else if (data.type === 'init') {
-              // initial state (optional)
+        es.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'queue_stats') {
+                    renderQueueStats(data.data);
+                } else if (data.type === 'log') {
+                    logLines.push(`${data.data.timestamp} ${'  '.repeat(data.data.level)}${data.data.message}`);
+                    if (logLines.length > maxLogs) logLines.shift();
+                    logsPre.textContent = logLines.join('\n');
+                    logsPre.scrollTop = logsPre.scrollHeight;
+                }
+            } catch (e) {
+                console.error('Error parsing SSE data:', e);
             }
-          } catch (e) {
-            // ignore parse issues
-          }
         };
 
-        function renderProgress() {
-          let html = '';
-          Object.entries(levels).sort((a,b)=>a[0]-b[0]).forEach(([lvl, info])=>{
-            html += `<div class="progress-line">Level ${lvl}: ${info.progress} — ${info.package} (page ${info.page})</div>`;
-          });
-          progressDiv.innerHTML = html || 'No active progress';
+        function renderQueueStats(stats) {
+            let html = `<div class="queue-summary">
+                <strong>Total in Queue:</strong> ${stats.total} packages
+                ${stats.scanned < stats.total ? ` (showing first ${stats.scanned})` : ''}
+            </div>`;
+
+            if (Object.keys(stats.levels).length > 0) {
+                html += '<div class="level-breakdown"><strong>Packages per Level:</strong></div>';
+                
+                // Sort levels numerically
+                Object.entries(stats.levels)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .forEach(([level, count]) => {
+                        const percentage = ((count / stats.total) * 100).toFixed(1);
+                        html += `<div class="progress-line">
+                            Level ${level}: ${count} packages (${percentage}%)
+                        </div>`;
+                    });
+            } else {
+                html += '<div>Queue is empty</div>';
+            }
+
+            progressDiv.innerHTML = html;
         }
-      } catch (e) {
-        logsPre.textContent = 'EventSource not supported or connection failed.';
-      }
+
+        es.onerror = function() {
+            progressDiv.innerHTML = '<div>Connection lost. Retrying...</div>';
+        };
     })();
-  </script>
+    </script>
 </body>
 </html>

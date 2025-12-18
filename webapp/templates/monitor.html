@@ -38,7 +38,7 @@
         }
 
         if (data.type === "log") {
-            logLines.push(`${data.data.timestamp} ${'  '.repeat(data.data.level)}${data.data.message}`);
+            logLines.push(`${data.data.timestamp}: ${data.data.message}`);
             if (logLines.length > maxLogs) logLines.shift();
             logsDiv.textContent = logLines.join("\n");
         }

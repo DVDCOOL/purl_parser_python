@@ -23,9 +23,7 @@ API_HOST = os.getenv('API_HOST', 'localhost')
 API_PORT = os.getenv('API_PORT', 8080)
 
 # In-memory buffers for real-time updates
-level_states = defaultdict(dict)
 log_buffer = deque(maxlen=1000)  # Keep last 1000 log entries
-progress_buffer = deque(maxlen=100)  # Keep last 100 progress updates
 
 # Lock for thread-safe access to buffers
 buffer_lock = threading.Lock()
@@ -57,57 +55,36 @@ def addpurl_page():
 # ============================================================================
 #                           WEBHOOK ENDPOINTS (NEW)
 # ============================================================================
-
-@app.route('/webhook/progress', methods=['POST'])
-def webhook_progress():
-    """Receive progress updates from spider via HTTP POST"""
+def get_queue_stats():
+    """Scan Redis queue and count packages per level"""
     try:
-        data = request.get_json()
+        # Get all items from the queue without popping
+        queue_length = redis_client.llen('working_queue')
         
-        level = int(data.get('level', 0))
-        timestamp = data.get('timestamp')
-        package = data.get('package')
-        dependent_idx = int(data.get('dependent_idx', 0))
-        total_dependents = int(data.get('total_dependents', 0))
-        page = int(data.get('page', 1))
+        level_counts = defaultdict(int)
         
-        with buffer_lock:
-            # Clear higher levels when we go back to a lower level
-            levels_to_remove = [l for l in level_states.keys() if l > level]
-            for l in levels_to_remove:
-                del level_states[l]
-            
-            # Update current level state
-            level_states[level] = {
-                'timestamp': timestamp,
-                'package': package,
-                'dependent_idx': dependent_idx,
-                'total_dependents': total_dependents,
-                'page': page
-            }
-            
-            # Add to progress buffer for SSE streaming
-            progress_buffer.append({
-                'type': 'progress',
-                'level': level,
-                'removed_levels': levels_to_remove,
-                'data': {
-                    'timestamp': timestamp,
-                    'progress': f"{dependent_idx}/{total_dependents}",
-                    'package': package,
-                    'page': page
-                }
-            })
+        # Sample the queue (if it's huge, you might want to limit this)
+        # LRANGE is O(N) so be careful with very large queues
+        max_scan = min(queue_length, 10000)  # Limit to avoid blocking
         
-        # Notify SSE clients
-        update_event.set()
+        items = redis_client.lrange('working_queue', 0, max_scan - 1)
         
-        return jsonify({'status': 'ok'}), 200
+        for item in items:
+            try:
+                entry = json.loads(item)
+                level = entry.get('current_level', 0)
+                level_counts[level] += 1
+            except json.JSONDecodeError:
+                continue
         
+        return {
+            'total': queue_length,
+            'scanned': len(items),
+            'levels': dict(level_counts)
+        }
     except Exception as e:
-        app.logger.error(f"Error in progress webhook: {e}")
-        return jsonify({'error': str(e)}), 500
-
+        app.logger.error(f"Error scanning queue: {e}")
+        return {'total': 0, 'scanned': 0, 'levels': {}}
 
 @app.route('/webhook/log', methods=['POST'])
 def webhook_log():
@@ -144,39 +121,26 @@ def webhook_log():
 @app.route('/progress-stream')
 def progress_stream():
     def event_stream():
-        # Send initial state
-        with buffer_lock:
-            yield f"data: {json.dumps({'type': 'init', 'levels': dict(level_states)})}\n\n"
-            
-            # Send recent logs
-            for log in list(log_buffer):
-                yield f"data: {json.dumps(log)}\n\n"
-
         try:
             while True:
-                # Wait for new updates (with timeout for heartbeat)
-                update_event.wait(timeout=30)
-                update_event.clear()
+                # Get current queue stats
+                stats = get_queue_stats()
                 
-                # Send all pending updates
+                # Send stats update
+                yield f"data: {json.dumps({'type': 'queue_stats', 'data': stats})}\n\n"
+                
+                # Send any pending logs
                 with buffer_lock:
-                    # Send progress updates
-                    while progress_buffer:
-                        update = progress_buffer.popleft()
-                        yield f"data: {json.dumps(update)}\n\n"
-                    
-                    # Send log updates
                     temp_logs = []
-                    while log_buffer and len(temp_logs) < 10:  # Send max 10 logs at once
+                    while log_buffer:
                         temp_logs.append(log_buffer.popleft())
                     
                     for log in temp_logs:
                         yield f"data: {json.dumps(log)}\n\n"
                 
-                # Heartbeat (if no updates were sent)
-                if not temp_logs and not progress_buffer:
-                    yield f": heartbeat\n\n"
-
+                # Wait before next scan (adjust interval as needed)
+                time.sleep(2)  # Scan every 2 seconds
+                
         except GeneratorExit:
             pass
         except Exception as e:
@@ -288,10 +252,10 @@ def add_purls():
 
     count = 0
     for p in purls:
-        redis_client.lpush("waiting_room", p)
+        redis_client.lpush("input_queue", p)
         count += 1
 
-    redis_client.lpush("waiting_room", "true")
+    redis_client.lpush("input_queue", "true")
 
     return jsonify({"status": f"Added {count} PURLs."})
 

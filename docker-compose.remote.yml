@@ -50,27 +50,6 @@ services:
     networks:
       - app-network
 
-  webapp:
-    image: my-webapp
-    build:
-      context: .
-      dockerfile: webapp/Dockerfile
-    ports:
-      - "${WEBAPP_PORT}:${WEBAPP_PORT}"
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_PORT=${REDIS_PORT}
-      - PYTHONUNBUFFERED=1
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${WEBAPP_PORT}/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
 
 # Create a network for all services
 networks:

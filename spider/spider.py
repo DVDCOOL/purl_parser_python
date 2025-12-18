@@ -43,24 +43,15 @@ class DependentFinder:
 
     def checkInputQueue(self):
         """Check if there are packages in the input queue"""
-        self.cleanup_stale_locks()
-
-        while self.queue.lpos('input_queue', 'true') is None:
-            print("Input queue wasn't ready yet. Sleeping for 10 seconds...")
-            time.sleep(10)
-
         message = self.queue.brpop('input_queue', timeout=self.timeout)
         if message is None:
-            print("No more packages in input queue. Checking processing queue.")
             return False
 
         purl = message[1]
         if purl != 'true':
             parsedPurl = PurlParser(purl)
             if parsedPurl.validPurl:
-                self.queue.lpush('processing_purl', purl)
                 self.findFirstPackage(parsedPurl)
-                self.queue.lrem('processing_purl', 0, purl)
                 print(f"Finished processing PURL: {purl}")
             else:
                 print(f"Invalid PURL: {purl}")
@@ -83,7 +74,11 @@ class DependentFinder:
                 print(f"Rate limit remaining: {self.requestRemaining}")
             
             print(f"Added package {data.get('name')} in working queue...")
-            self.queue.lpush('working_queue', [data, 0, None])  # current_level=0, parent_info=None
+            self.queue.lpush('working_queue', json.dumps({
+                'data': data,
+                'current_level': 0,
+                'parent_info': None
+            }))
         else:
             print("Error: Could not fetch package data.")
             print(f"Error: {response.status_code}")
@@ -145,6 +140,7 @@ class DependentFinder:
             # Fallback to print if webhook fails
             
             print(f"Failed to send log webhook: {e}")
+        #print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: [{log_level}] {message}")
                 
     def tick(self):
         """Main loop to process input and working queues"""
@@ -155,16 +151,16 @@ class DependentFinder:
 
     def checkWorkingQueue(self):
         """Check the working queue for packages to process"""
-        while True:
-            message = self.queue.brpop('working_queue', timeout=self.timeout)
-            if message is None:
-                print("No more packages in working queue.")
-                break
-            data = json.loads(message[1])
-            package = data[0]
-            current_level = data[1]
-            parent_info = data[2]
-            self.findDependents(package, current_level, parent_info)
+
+        message = self.queue.brpop('working_queue', timeout=self.timeout)
+        if message is None:
+            print("No more packages in working queue.")
+            return
+        data = json.loads(message[1])
+        package = data.get("data")
+        current_level = data.get("current_level")
+        parent_info = data.get("parent_info")
+        self.findDependents(package, current_level, parent_info)
             
 
     def findDependents(self, package, current_level=0, parent_info=None):
@@ -181,6 +177,7 @@ class DependentFinder:
         version = package.get("latest_release_number")
         normalized_license = package.get("normalized_licenses")
         package_key = f"{ecosystem}/{package_name}"
+        
         
         self.queue.lpush('output_queue', json.dumps({
                 'type': 'package',
@@ -226,17 +223,21 @@ class DependentFinder:
             self.updateRateLimit(dependents_response)
             
             pages = 1
-            
+            number_of_dependents = 0
             while dependents_response.status_code == 200:
 
-                    
-                dependents_data = dependents_response.json()
                 
+                dependents_data = dependents_response.json()
+                number_of_dependents += len(dependents_data)
                 if not dependents_data:
                     break
                 
                 for package in dependents_data:
-                    self.queue.lpush('working_queue', [package, current_level + 1, (ecosystem, package_name)])
+                    self.queue.lpush('working_queue', json.dumps({
+                        'data': package,
+                        'current_level': current_level + 1,
+                        'parent_info': (ecosystem, package_name)
+                    }))
                 pages += 1
                 
                 if not self.checkRateLimit():
@@ -245,9 +246,8 @@ class DependentFinder:
                 dependents_response = requests.get(dependentsURL + f"?latest=true&page={pages}", headers=HEADERS)
                 self.requestMade += 1
                 self.updateRateLimit(dependents_response)
+            self.send_log(current_level, f" Found {number_of_dependents} dependents for {package_key} on level {current_level}")
             
-            if current_level == 0:
-                self.send_log(current_level, f"  ✔️ Finished fully: {package_key}")
 
         except Exception as e:
             self.send_log(current_level, f"  💥 Exception: {e}", "ERROR")

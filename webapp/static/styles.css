@@ -71,9 +71,73 @@ button{ background:var(--accent); border:none; padding:8px 12px; color:white; bo
 button:disabled{ opacity:.45; cursor:not-allowed; }
 .muted{ color:var(--muted); font-size:13px; }
 
-.logs{ background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); padding:12px; border-radius:6px; max-height:420px; overflow:auto; white-space:pre-wrap; font-family:monospace; font-size:13px; color:var(--muted); }
+.logs{ 
+  background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); 
+  padding:12px; 
+  border-radius:6px; 
+  max-height:420px; 
+  overflow:auto; 
+  white-space:pre-wrap; 
+  font-family:monospace; 
+  font-size:13px; 
+  color:var(--muted); 
+}
 
-.purl-box{ width:100%; min-height:140px; padding:10px; background:var(--glass); border-radius:6px; color:var(--text); border:1px solid rgba(255,255,255,0.02); }
+.purl-box{ 
+  width:100%; 
+  min-height:140px; 
+  padding:10px; 
+  background:var(--glass); 
+  border-radius:6px; 
+  color:var(--text); 
+  border:1px solid rgba(255,255,255,0.02); 
+}
+
+/* New progress styles */
+.progress-area {
+  min-height: 60px;
+}
+
+.queue-summary {
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  border: 1px solid rgba(255,255,255,0.02);
+  color: var(--text);
+}
+
+.queue-summary strong {
+  color: var(--accent);
+}
+
+.level-breakdown {
+  margin: 14px 0 10px 0;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.progress-line {
+  padding: 10px 12px;
+  margin: 6px 0;
+  background: var(--glass);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255,255,255,0.02);
+  border-left: 3px solid var(--accent);
+}
+
+.progress-line:hover {
+  background: rgba(0,170,255,0.05);
+  border-left-color: var(--accent);
+  transform: translateX(2px);
+}
 
 @media (max-width:720px){
   .page-header { flex-direction:column; align-items:flex-start; gap:8px; }
